@@ -238,7 +238,7 @@ export default function DoctorDashboard() {
         </div>
 
         <div className="space-y-6 p-8">
-          <div className="card bg-gradient-dental text-blue-400 border-0">
+          <div className="card bg-gradient-dental text-white border-0">
             <p className="text-dental-100 text-sm">Good morning,</p>
             <h2 className="font-display font-bold text-2xl mt-1">
               Dr. {user?.name?.split(" ").pop()}
@@ -341,15 +341,14 @@ export default function DoctorDashboard() {
                         </td>
                         <td className="py-3 px-4">
                           <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                              apt.status === "confirmed"
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${apt.status === "confirmed"
                                 ? "bg-green-100 text-green-700"
                                 : apt.status === "pending"
                                   ? "bg-amber-100 text-amber-700"
                                   : apt.status === "completed"
                                     ? "bg-blue-100 text-blue-700"
                                     : "bg-red-100 text-red-700"
-                            }`}
+                              }`}
                           >
                             {apt.status === "confirmed"
                               ? "Xác nhận"

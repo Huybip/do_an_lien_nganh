@@ -243,6 +243,9 @@ export default function DoctorChat() {
       setLoading(true);
       const formData = new FormData();
       formData.append("image", file);
+      if (selectedUser) {
+        formData.append("patientId", selectedUser._id || selectedUser.id || "");
+      }
 
       const res = await imageApi.upload(formData);
       const imageUrl = res.data?.data?.url || res.data?.url;
@@ -291,6 +294,9 @@ export default function DoctorChat() {
       setLoading(true);
       const formData = new FormData();
       formData.append("audio", file);
+      if (selectedUser) {
+        formData.append("patientId", selectedUser._id || selectedUser.id || "");
+      }
 
       const res = await imageApi.upload(formData);
       const audioUrl = res.data?.data?.url || res.data?.url;
