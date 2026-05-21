@@ -240,7 +240,7 @@ export default function DoctorDashboard() {
         <div className="space-y-6 p-8">
           <div className="card bg-gradient-dental text-white border-0">
             <p className="text-dental-100 text-sm">Good morning,</p>
-            <h2 className="font-display font-bold text-2xl mt-1">
+            <h2 className="font-display font-bold text-2xl mt-1 text-white">
               Dr. {user?.name?.split(" ").pop()}
             </h2>
             <p className="text-dental-200 text-sm mt-1">
