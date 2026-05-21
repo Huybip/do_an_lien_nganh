@@ -90,7 +90,21 @@ export default function DoctorAppointments() {
   };
 
   const columns = [
-    { key: "patientName", header: "Patient" },
+    {
+      key: "patientName",
+      header: "Patient",
+      render: (a: Appointment) => (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mint-400 to-dental-500 flex items-center justify-center text-white text-xs font-bold">
+            {a.patient?.name?.charAt(0) || a.patientName?.charAt(0) || "P"}
+          </div>
+          <div>
+            <p className="font-medium">{a.patient?.name || a.patientName}</p>
+            <p className="text-xs text-surface-400">{a.patient?.email || "—"}</p>
+          </div>
+        </div>
+      ),
+    },
     {
       key: "service",
       header: "Service",

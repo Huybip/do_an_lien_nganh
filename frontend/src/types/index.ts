@@ -23,6 +23,7 @@ export interface Appointment {
   id: string;
   patientId: string;
   patientName: string;
+  patient?: User;
   doctorId: string;
   doctorName: string;
   service: Service | string;
