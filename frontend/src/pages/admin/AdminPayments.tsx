@@ -890,10 +890,10 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
-                  <span className="font-bold">Ngân hàng MBBank</span>
+                  <span className="font-bold">Ngân hàng BIDV</span>
                 </div>
-                <p className="text-emerald-100 text-sm">STK: <strong>280605666888</strong></p>
-                <p className="text-emerald-100 text-sm">Tên: <strong>Nguyen Thai Son</strong></p>
+                <p className="text-emerald-100 text-sm">STK: <strong>1231270139</strong></p>
+                <p className="text-emerald-100 text-sm">Tên: <strong>TRAN QUOC HUY</strong></p>
               </div>
 
               {/* Patient selection */}
