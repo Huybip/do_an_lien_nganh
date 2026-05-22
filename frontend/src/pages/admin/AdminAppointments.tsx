@@ -140,6 +140,7 @@ export default function AdminAppointments() {
       key: "patientName",
       header: "BỆNH NHÂN",
       render: (apt: Appointment) => (
+<<<<<<< HEAD
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
             {apt.patientName?.charAt(0).toUpperCase()}
@@ -147,6 +148,15 @@ export default function AdminAppointments() {
           <div>
             <p className="text-slate-700 font-medium">{apt.patientName}</p>
             <p className="text-xs text-slate-400">{apt.patient?.email}</p>
+=======
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mint-400 to-dental-500 flex items-center justify-center text-white text-xs font-bold">
+            {apt.patient?.name?.charAt(0) || apt.patientName?.charAt(0) || "P"}
+          </div>
+          <div>
+            <p className="font-medium text-gray-900">{apt.patient?.name || apt.patientName}</p>
+            <p className="text-xs text-gray-500">{apt.patient?.email || "—"}</p>
+>>>>>>> bfd696e03a1e643feb1eb1deeedce346219624dc
           </div>
         </div>
       ),

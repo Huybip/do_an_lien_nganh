@@ -129,6 +129,7 @@ export const appointmentApi = {
   approve: (id: string) => api.put(`/appointments/${id}/approve`),
   reject: (id: string, data: object) =>
     api.put(`/appointments/${id}/reject`, data),
+<<<<<<< HEAD
   complete: (id: string, data?: object) =>
     api.put(`/appointments/${id}/complete`, data || {}),
   delete: (id: string) => api.delete(`/appointments/${id}`),
@@ -157,6 +158,9 @@ export const shiftApi = {
   update: (id: string, data: object) => api.put(`/shifts/${id}`, data),
   cancel: (id: string) => api.delete(`/shifts/${id}/cancel`),
   delete: (id: string) => api.delete(`/shifts/${id}`),
+=======
+  delete: (id: string) => api.delete(`/appointments/${id}`),
+>>>>>>> bfd696e03a1e643feb1eb1deeedce346219624dc
 };
 
 // ─── Medical Records ────────────────────────────────────────────────────────

@@ -82,7 +82,11 @@ export default function DoctorAppointments() {
         }
     };
     const columns = [
-        { key: "patientName", header: "Patient" },
+        {
+            key: "patientName",
+            header: "Patient",
+            render: (a) => (_jsxs("div", { className: "flex items-center gap-2", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-gradient-to-br from-mint-400 to-dental-500 flex items-center justify-center text-white text-xs font-bold", children: a.patient?.name?.charAt(0) || a.patientName?.charAt(0) || "P" }), _jsxs("div", { children: [_jsx("p", { className: "font-medium", children: a.patient?.name || a.patientName }), _jsx("p", { className: "text-xs text-surface-400", children: a.patient?.email || "—" })] })] })),
+        },
         {
             key: "service",
             header: "Service",

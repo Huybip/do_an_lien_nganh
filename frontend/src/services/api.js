@@ -80,6 +80,7 @@ export const appointmentApi = {
     cancel: (id) => api.put(`/appointments/${id}/cancel`),
     approve: (id) => api.put(`/appointments/${id}/approve`),
     reject: (id, data) => api.put(`/appointments/${id}/reject`, data),
+    delete: (id) => api.delete(`/appointments/${id}`),
 };
 // ─── Medical Records ────────────────────────────────────────────────────────
 export const recordApi = {

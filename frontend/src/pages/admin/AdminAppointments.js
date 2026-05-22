@@ -54,7 +54,7 @@ export default function AdminAppointments() {
         {
             key: "patientName",
             header: "PATIENT",
-            render: (apt) => (_jsx("span", { className: "text-gray-700", children: apt.patientName })),
+            render: (apt) => (_jsxs("div", { className: "flex items-center gap-2", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-gradient-to-br from-mint-400 to-dental-500 flex items-center justify-center text-white text-xs font-bold", children: apt.patient?.name?.charAt(0) || apt.patientName?.charAt(0) || "P" }), _jsxs("div", { children: [_jsx("p", { className: "font-medium text-gray-900", children: apt.patient?.name || apt.patientName }), _jsx("p", { className: "text-xs text-gray-500", children: apt.patient?.email || "—" })] })] })),
         },
         {
             key: "doctorName",
