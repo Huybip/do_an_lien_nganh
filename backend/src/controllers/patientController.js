@@ -10,6 +10,7 @@ const ALLOWED_SORT = ["name", "email", "createdAt"];
 // GET /api/patients  [admin, doctor]
 const getAll = async (req, res) => {
   try {
+    console.log("[PATIENT GETALL] user:", req.user?._id, req.user?.role);
     const { page, limit, skip } = getPagination(req.query);
     const sort = buildSort(req.query, ALLOWED_SORT);
     const filter = { isActive: true };
@@ -32,8 +33,10 @@ const getAll = async (req, res) => {
       Patient.countDocuments(filter),
     ]);
 
+    console.log("[PATIENT GETALL] found:", patients.length, "total:", total);
     return sendPaginated(res, patients, total, page, limit);
   } catch (err) {
+    console.error("[PATIENT GETALL] ERROR:", err);
     return sendError(res, 500, err.message);
   }
 };

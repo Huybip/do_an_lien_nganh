@@ -54,6 +54,8 @@ export interface MedicalRecord {
   prescription?: string;
   date: string;
   notes?: string;
+  status?: "completed" | "pending" | "followup";
+  type?: "examination" | "treatment" | "surgery" | "checkup";
 }
 
 export interface DentalImage {
@@ -89,9 +91,25 @@ export interface DentalScore {
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "ai";
   content: string;
+  timestamp?: string;
+}
+
+export interface ChatMessageFull {
+  id: string;
+  sender: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  type: "text" | "image" | "audio";
+  content?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  audioName?: string;
   timestamp: string;
+  isOwn?: boolean;
 }
 
 export interface ApiResponse<T> {

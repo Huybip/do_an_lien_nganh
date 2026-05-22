@@ -1,14 +1,15 @@
-'use strict';
+"use strict";
 
 const User         = require('../models/User');
 const Patient      = require('../models/Patient');
 const Doctor       = require('../models/Doctor');
-const Appointment  = require('../models/Appointment');
+const Appointment   = require('../models/Appointment');
 const MedicalRecord= require('../models/MedicalRecord');
 const ImageAnalysis= require('../models/ImageAnalysis');
 const Service      = require('../models/Service');
 const ChatHistory  = require('../models/ChatHistory');
 const DentalScore  = require('../models/DentalScore');
+const Payment      = require('../models/Payment');
 const { sendSuccess, sendError } = require('../utils/response');
 const { todayString } = require('../utils/helpers');
 
@@ -49,12 +50,23 @@ const getDashboard = async (req, res) => {
       ChatHistory.countDocuments(),
     ]);
 
-    // Revenue estimate from completed appointments
-    const revenueAgg = await Appointment.aggregate([
-      { $match: { status: 'completed', isPaid: true } },
-      { $group: { _id: null, total: { $sum: '$fee' } } },
+    // Revenue from Payment model (actual recorded payments)
+    // All payments created via create() have status="paid" and paidAt set
+    const paymentRevenueAgg = await Payment.aggregate([
+      { $match: { status: "paid" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
-    const totalRevenue = revenueAgg[0]?.total || 0;
+    const totalRevenue = paymentRevenueAgg[0]?.total || 0;
+
+    // Revenue this month — use paidAt (always set for paid payments)
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const monthRevenueAgg = await Payment.aggregate([
+      { $match: { status: "paid", paidAt: { $gte: startOfMonth } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const monthRevenue = monthRevenueAgg[0]?.total || 0;
 
     // Monthly appointment trend (last 6 months)
     const sixMonthsAgo = new Date();
@@ -111,7 +123,7 @@ const getDashboard = async (req, res) => {
       images:   { total: totalImages },
       services: { total: totalServices, active: activeServices },
       chat:     { totalSessions: totalChats },
-      revenue:  { total: totalRevenue },
+      revenue:  { total: totalRevenue, month: monthRevenue },
       analytics: {
         monthlyAppointmentTrend: monthlyTrend,
         topServices,
@@ -208,10 +220,10 @@ const getRecentActivity = async (req, res) => {
 
     // Merge and sort by date
     const feed = [
-      ...recentUsers.map(u => ({ type: 'user_registered', icon: '👤', message: `New ${u.role} registered: ${u.name}`, timestamp: u.createdAt })),
-      ...recentAppointments.map(a => ({ type: 'appointment', icon: '📅', message: `Appointment ${a.status}: ${a.patientName} → Dr. ${a.doctorName}`, timestamp: a.createdAt })),
-      ...recentRecords.map(r => ({ type: 'record', icon: '📋', message: `Record created for ${r.patientName}: ${r.diagnosis}`, timestamp: r.createdAt })),
-      ...recentImages.map(i => ({ type: 'image', icon: '🖼️', message: `${i.type} uploaded for ${i.patientName}`, timestamp: i.createdAt })),
+      ...recentUsers.map(u => ({ type: 'user_registered', icon: 'user', message: `New ${u.role} registered: ${u.name}`, timestamp: u.createdAt })),
+      ...recentAppointments.map(a => ({ type: 'appointment', icon: 'calendar', message: `Appointment ${a.status}: ${a.patientName} → Dr. ${a.doctorName}`, timestamp: a.createdAt })),
+      ...recentRecords.map(r => ({ type: 'record', icon: 'file', message: `Record created for ${r.patientName}: ${r.diagnosis}`, timestamp: r.createdAt })),
+      ...recentImages.map(i => ({ type: 'image', icon: 'image', message: `${i.type} uploaded for ${i.patientName}`, timestamp: i.createdAt })),
     ]
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
       .slice(0, limit);

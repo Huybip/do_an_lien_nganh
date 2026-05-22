@@ -3,7 +3,37 @@
 const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 const User = require("../models/User");
+const Shift = require("../models/Shift");
 const Service = require("../models/Service");
+const Payment = require("../models/Payment");
+// ── SePay VietQR config ────────────────────────────────────────────────────────────
+// QR generation: URL public, khong can API key
+// API key chi dung cho webhook xac nhan giao dich
+const SEPay_KEY = "spsk_live_yauyzM9vqm4vh1Fvo3GbjrL9eKW5sEMN";
+const SEPay_QR_URL = "https://qr.sepay.vn/img";
+const BANK_NAME = "MBBank";  // Short name MBBank cho SePay
+const ACCOUNT_NO = "280605666888";
+const ACCOUNT_NAME = "Nguyen Thai Son";
+
+function generatePaymentQR(amount, invoiceNumber) {
+  const des = invoiceNumber
+    ? `Thanh toan hoa don ${invoiceNumber}`
+    : "Thanh toan phong kham nha khoa";
+
+  const params = new URLSearchParams({
+    acc: ACCOUNT_NO,
+    bank: BANK_NAME,
+    amount: String(Math.round(amount)),
+    des: des,
+    template: "compact",
+  });
+
+  return {
+    qrDataUrl: `${SEPay_QR_URL}?${params.toString()}`,
+    qrString: `${SEPay_QR_URL}?${params.toString()}`,
+    addInfo: des,
+  };
+}
 const { sendSuccess, sendError, sendPaginated } = require("../utils/response");
 const { getPagination, buildSort } = require("../utils/pagination");
 
@@ -89,17 +119,50 @@ const getById = async (req, res) => {
 // POST /api/appointments  [patient]
 const create = async (req, res) => {
   try {
-    const { doctorId, serviceId, date, time, notes } = req.body;
+    const { doctorId, serviceId, date, shiftType, notes } = req.body;
 
-    // Validate doctor (doctorId is the Doctor document ID, need to get User ID from it)
+    if (!shiftType || !["morning", "afternoon", "evening"].includes(shiftType)) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn ca trực: sáng, chiều hoặc tối." });
+    }
+
+    if (!doctorId) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn bác sĩ." });
+    }
+
     const doctor = await Doctor.findById(doctorId).populate("user");
     if (!doctor || !doctor.user || !doctor.user.isActive) {
-      return sendError(res, 404, "Doctor not found.");
+      return res.status(404).json({ success: false, message: "Doctor not found." });
     }
 
     const userId = doctor.user._id;
 
-    // Validate service
+    const shift = await Shift.findOne({ doctorId, date, shiftType, status: "active" });
+    if (!shift) {
+      return res.status(404).json({
+        success: false,
+        message: `Bác sĩ chưa đăng ký ca trực này vào ngày ${date}. Vui lòng chọn ca khác.`
+      });
+    }
+
+    const existingBookings = await Appointment.countDocuments({
+      doctor: userId, date, shiftType,
+      status: { $in: ["pending", "confirmed"] },
+    });
+    if (existingBookings >= shift.maxPatients) {
+      return res.status(409).json({
+        success: false,
+        message: `Ca trực này đã đầy. Vui lòng chọn ca khác.`
+      });
+    }
+
+    const duplicate = await Appointment.findOne({
+      patient: req.user._id, doctor: userId, date, shiftType,
+      status: { $in: ["pending", "confirmed"] },
+    });
+    if (duplicate) {
+      return res.status(409).json({ success: false, message: "Bạn đã đặt lịch khám vào ca này rồi." });
+    }
+
     let service = null;
     let serviceName = req.body.serviceName || "General Consultation";
     let fee = 0;
@@ -111,31 +174,17 @@ const create = async (req, res) => {
       }
     }
 
-    // Check for time conflict on same doctor
-    const conflict = await Appointment.findOne({
-      doctor: userId,
-      date,
-      time,
-      status: { $in: ["pending", "confirmed"] },
-    });
-    if (conflict) {
-      return sendError(
-        res,
-        409,
-        "This time slot is already booked. Please choose another time.",
-      );
-    }
-
     const appointment = await Appointment.create({
-      patient: req.user._id,
+      patient:     req.user._id,
       patientName: req.user.name,
-      doctor: userId,
-      doctorName: doctor.name,
-      service: serviceId || undefined,
+      doctor:      userId,
+      doctorName:  doctor.name,
+      service:     serviceId || undefined,
       serviceName,
       date,
-      time,
-      duration: service?.duration || 30,
+      shiftType,
+      time:        shift.startTime,
+      duration:    service?.duration || 30,
       fee,
       notes,
     });
@@ -145,14 +194,14 @@ const create = async (req, res) => {
       { path: "service", select: "name price duration" },
     ]);
 
-    return sendSuccess(
-      res,
-      201,
-      "Appointment booked successfully",
-      appointment,
-    );
+    return res.status(201).json({
+      success: true,
+      message: `Đặt lịch thành công!`,
+      data: appointment,
+    });
   } catch (err) {
-    return sendError(res, 500, err.message);
+    console.error("[APPOINTMENT CREATE ERROR]", err);
+    return res.status(500).json({ success: false, message: err.message || "Internal server error." });
   }
 };
 
@@ -264,53 +313,65 @@ const getStats = async (req, res) => {
 };
 
 // GET /api/appointments/slots?doctorId=&date=  [auth: all]
+// Returns available shifts (from Shift model) for a doctor on a date
+// doctorId = Doctor Model _id (from doctorApi.getAll())
 const getAvailableSlots = async (req, res) => {
   try {
     const { doctorId, date } = req.query;
     if (!doctorId || !date) {
-      return sendError(
-        res,
-        400,
-        "doctorId and date query params are required.",
-      );
+      return sendError(res, 400, "doctorId and date query params are required.");
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return sendError(res, 400, "date must be in YYYY-MM-DD format.");
     }
 
-    const doctor = await User.findById(doctorId);
-    if (!doctor || doctor.role !== "doctor") {
-      return sendError(res, 404, "Doctor not found.");
-    }
+    // Get all active shifts for this doctor on this date – query by doctorId field
+    const shifts = await Shift.find({ doctorId, date, status: "active" });
 
-    const booked = await Appointment.find({
-      doctor: doctorId,
-      date,
-      status: { $in: ["pending", "confirmed"] },
-    }).select("time duration");
+    // For each shift, count bookings using s.doctor (User _id)
+    const shiftTypes = ["morning", "afternoon", "evening"];
+    const SHIFT_LABELS = { morning: "Ca sáng (08:00–12:00)", afternoon: "Ca chiều (13:00–17:00)", evening: "Ca tối (18:00–21:00)" };
+    const SHIFT_COLORS = { morning: "#f59e0b", afternoon: "#8b5cf6", evening: "#0ea5e9" };
 
-    const bookedTimes = new Set(booked.map((a) => a.time));
+    const result = shiftTypes.map((type) => {
+      const shift = shifts.find((s) => s.shiftType === type);
+      return {
+        shiftType: type,
+        label: SHIFT_LABELS[type],
+        color: SHIFT_COLORS[type],
+        startTime: shift?.startTime || null,
+        endTime:   shift?.endTime   || null,
+        maxPatients: shift?.maxPatients || 0,
+        isRegistered: !!shift,
+        isActive:    shift?.status === "active",
+        booked: 0,
+        remaining: 0,
+        isFull: false,
+        available: false,
+      };
+    });
 
-    const allSlots = [];
-    for (let h = 8; h < 17; h++) {
-      for (let m = 0; m < 60; m += 30) {
-        allSlots.push(
-          `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-        );
-      }
-    }
-
-    const available = allSlots.map((slot) => ({
-      time: slot,
-      available: !bookedTimes.has(slot),
+    // Count bookings for each shift using s.doctor (User _id)
+    await Promise.all(result.map(async (item) => {
+      if (!item.isRegistered) return;
+      const shift = shifts.find((s) => s.shiftType === item.shiftType);
+      const booked = await Appointment.countDocuments({
+        doctor:    shift.doctor,   // User _id stored in Shift.doctor
+        date,
+        shiftType: item.shiftType,
+        status:    { $in: ["pending", "confirmed"] },
+      });
+      item.booked    = booked;
+      item.remaining = Math.max(0, item.maxPatients - booked);
+      item.isFull    = booked >= item.maxPatients;
+      item.available = item.isActive && !item.isFull;
     }));
 
     return sendSuccess(res, 200, "Available slots retrieved", {
       doctorId,
-      doctorName: doctor.name,
       date,
-      slots: available,
-      availableCount: available.filter((s) => s.available).length,
+      shifts: result,
+      availableCount: result.filter((s) => s.available).length,
     });
   } catch (err) {
     return sendError(res, 500, err.message);
@@ -360,17 +421,12 @@ const reject = async (req, res) => {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return sendError(res, 404, "Appointment not found.");
 
-    // Only doctor can reject their own appointments
     if (appointment.doctor.toString() !== req.user._id.toString()) {
       return sendError(res, 403, "Access denied. Not your appointment.");
     }
 
     if (appointment.approvalStatus !== "pending") {
-      return sendError(
-        res,
-        400,
-        `Appointment approval status is already ${appointment.approvalStatus}.`,
-      );
+      return sendError(res, 400, `Appointment approval status is already ${appointment.approvalStatus}.`);
     }
 
     const reason = req.body.reason || "Doctor rejected the appointment";
@@ -394,6 +450,116 @@ const reject = async (req, res) => {
   }
 };
 
+// ── Auto-complete appointment with payment + QR ────────────────────────────────
+// PUT /api/appointments/:id/complete  [doctor, admin]
+const complete = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) return sendError(res, 404, "Appointment not found.");
+
+    // Doctors can only complete their own appointments
+    if (
+      req.user.role === "doctor" &&
+      appointment.doctor.toString() !== req.user._id.toString()
+    ) {
+      return sendError(res, 403, "Access denied. Not your appointment.");
+    }
+
+    if (appointment.status === "completed") {
+      return sendError(res, 400, "Appointment is already completed.");
+    }
+    if (appointment.status === "cancelled") {
+      return sendError(res, 400, "Cannot complete a cancelled appointment.");
+    }
+
+    // ── Auto-resolve fee from Service if not set ───────────────────────────────
+    let fee = appointment.fee || 0;
+    if (appointment.service && fee === 0) {
+      const service = await Service.findById(appointment.service);
+      if (service && service.price > 0) {
+        fee = service.price;
+        appointment.fee = fee;
+      }
+    }
+
+    // ── Mark appointment completed ────────────────────────────────────────────
+    appointment.status = "completed";
+    appointment.doctorNotes = req.body.notes || appointment.doctorNotes || appointment.doctorNotes;
+    await appointment.save();
+
+    // ── Create Payment record ───────────────────────────────────────────────────
+    let payment = null;
+    let qrData = null;
+
+    if (fee > 0) {
+      // Count existing payments this month for invoice number
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const count = await Payment.countDocuments({
+        createdAt: {
+          $gte: new Date(`${year}-${month}-01`),
+          $lt: new Date(`${year}-${month + 1}-01`),
+        },
+      });
+      const invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(4, "0")}`;
+
+      payment = await Payment.create({
+        patient: appointment.patient,
+        patientName: appointment.patientName,
+        appointment: appointment._id,
+        invoiceNumber,
+        amount: fee,
+        method: "bank_transfer",
+        status: "pending",
+        description: `Thanh toan kham ${appointment.serviceName || "dich vu"} ngay ${appointment.date}`,
+        services: [
+          {
+            name: appointment.serviceName || "Dich vu kham",
+            price: fee,
+          },
+        ],
+        discount: 0,
+        tax: 0,
+        notes: `Tu dong tao tu lich hen ${appointment.date} ${appointment.time}`,
+        recordedBy: req.user._id,
+        recordedByName: req.user.name,
+      });
+
+      // ── Generate QR code ──────────────────────────────────────────────────────
+      const qr = generatePaymentQR(fee, invoiceNumber);
+      qrData = {
+        invoiceNumber,
+        amount: fee,
+        qrDataUrl: qr.qrDataUrl,
+        qrString: qr.qrString,
+        addInfo: qr.addInfo,
+        paymentId: payment._id,
+        bankId: BANK_NAME,
+        accountNo: ACCOUNT_NO,
+        accountName: ACCOUNT_NAME,
+      };
+    }
+
+    await appointment.populate([
+      { path: "patient", select: "name email phone" },
+      { path: "doctor", select: "name email" },
+      { path: "service", select: "name price" },
+    ]);
+
+    return sendSuccess(res, 200, "Appointment completed", {
+      appointment,
+      payment,
+      qrData,
+      message: fee > 0
+        ? `Da hoan thanh kham va tao phieu thu ${fee.toLocaleString("vi-VN")} VND. Ma QR da duoc tao.`
+        : "Da hoan thanh kham (khong co phi kham).",
+    });
+  } catch (err) {
+    return sendError(res, 500, err.message);
+  }
+};
+
 module.exports = {
   getAll,
   getMine,
@@ -406,4 +572,5 @@ module.exports = {
   getAvailableSlots,
   approve,
   reject,
+  complete,
 };

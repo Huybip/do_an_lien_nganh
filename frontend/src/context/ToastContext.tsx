@@ -2,7 +2,6 @@ import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/ui/Toaster'
-import Toaster from '../components/ui/Toaster'
 
 interface ToastContextType {
   toast: {
@@ -21,7 +20,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <Toaster toasts={toasts} onRemove={removeToast} />
+      <Toast toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>
   )
 }

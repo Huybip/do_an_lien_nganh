@@ -15,7 +15,8 @@ export function useApi<T>(
     setError(null)
     try {
       const res = await apiFn()
-      setData(res.data?.data ?? res.data)
+      const resolved = res.data?.data ?? res.data
+      setData(resolved as T)
     } catch (e: any) {
       setError(e.response?.data?.message || e.message || 'An error occurred')
     } finally {

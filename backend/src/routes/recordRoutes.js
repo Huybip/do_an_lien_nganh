@@ -11,6 +11,7 @@ const createSchema = {
     patientId:      Joi.string().required(),
     appointmentId:  Joi.string().allow('', null),
     date:           Joi.string().allow('', null),
+    type:           Joi.string().allow('', null),
     chiefComplaint: Joi.string().allow('', null),
     diagnosis:      Joi.string().required(),
     treatment:      Joi.string().required(),

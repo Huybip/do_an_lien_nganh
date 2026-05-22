@@ -13,6 +13,7 @@ const {
   getAvailableSlots,
   approve,
   reject,
+  complete,
 } = require("../controllers/appointmentController");
 const { auth, authorize } = require("../middleware/auth");
 const validate = require("../middleware/validate");
@@ -26,8 +27,8 @@ const createSchema = {
     date: Joi.string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
       .required(),
-    time: Joi.string()
-      .pattern(/^\d{2}:\d{2}$/)
+    shiftType: Joi.string()
+      .valid("morning", "afternoon", "evening")
       .required(),
     notes: Joi.string().allow("", null),
   }),
@@ -48,6 +49,7 @@ router.get("/:id", auth, getById);
 router.put("/:id/cancel", auth, cancel);
 router.put("/:id/approve", auth, authorize("doctor"), approve);
 router.put("/:id/reject", auth, authorize("doctor"), reject);
+router.put("/:id/complete", auth, authorize("admin", "doctor"), complete);
 
 // Doctor + Admin management
 router.get("/", auth, authorize("admin", "doctor"), getAll);

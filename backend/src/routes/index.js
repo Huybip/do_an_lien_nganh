@@ -12,6 +12,8 @@ router.use("/records", require("./recordRoutes"));
 router.use("/services", require("./serviceRoutes"));
 router.use("/images", require("./imageRoutes"));
 router.use("/scores", require("./scoreRoutes"));
+router.use("/payments", require("./paymentRoutes"));
+router.use("/shifts", require("./shiftRoutes"));
 router.use("/chat", require("./chatRoutes"));
 router.use("/conversations", require("./conversationRoutes"));
 router.use("/predict", require("./predictionRoutes"));

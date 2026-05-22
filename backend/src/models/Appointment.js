@@ -29,6 +29,13 @@ const appointmentSchema = new mongoose.Schema(
       required: [true, "Appointment time is required"],
       match: [/^\d{2}:\d{2}$/, "Time must be in HH:MM format"],
     },
+    shiftType: {
+      type: String,
+      enum: {
+        values: ["morning", "afternoon", "evening"],
+        message: "Shift type must be: morning, afternoon, or evening",
+      },
+    },
     duration: { type: Number, default: 30 },
     status: {
       type: String,
@@ -67,6 +74,7 @@ const appointmentSchema = new mongoose.Schema(
 
 appointmentSchema.index({ patient: 1, date: 1 });
 appointmentSchema.index({ doctor: 1, date: 1 });
+appointmentSchema.index({ doctor: 1, date: 1, shiftType: 1 });
 appointmentSchema.index({ status: 1 });
 appointmentSchema.index({ date: 1 });
 

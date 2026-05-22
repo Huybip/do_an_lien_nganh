@@ -2,9 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
-// Pages
+// Public Pages
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import HomePage from "./pages/HomePage";
 
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -15,17 +16,24 @@ import AdminAppointments from "./pages/admin/AdminAppointments";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminHelp from "./pages/admin/AdminHelp";
+import AdminScores from "./pages/admin/AdminScores";
+import AdminShifts from "./pages/admin/AdminShifts";
+import AdminPayments from "./pages/admin/AdminPayments";
 
 // Doctor
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import DoctorPatients from "./pages/doctor/DoctorPatients";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
+import DoctorShifts from "./pages/doctor/DoctorShifts";
 import DoctorRecords from "./pages/doctor/DoctorRecords";
 import DoctorImages from "./pages/doctor/DoctorImages";
 import DoctorChat from "./pages/doctor/DoctorChat";
 
+import DoctorPayments from "./pages/doctor/DoctorPayments";
+
 // Patient
 import PatientDashboard from "./pages/patient/PatientDashboard";
+import PatientPayments from "./pages/patient/PatientPayments";
 import PatientProfile from "./pages/patient/PatientProfile";
 import PatientAppointment from "./pages/patient/PatientAppointment";
 import PatientRecords from "./pages/patient/PatientRecords";
@@ -35,19 +43,25 @@ import PatientChat from "./pages/patient/PatientChat";
 
 import VideoCallPage from "./pages/VideoCallPage";
 
-function RootRedirect() {
+// Redirect authenticated users away from auth pages
+function LoginRedirect() {
   const { isAuthenticated, role } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (role === "admin") return <Navigate to="/admin" replace />;
-  if (role === "doctor") return <Navigate to="/doctor" replace />;
-  return <Navigate to="/patient" replace />;
+  if (isAuthenticated) {
+    if (role === "admin") return <Navigate to="/admin" replace />;
+    if (role === "doctor") return <Navigate to="/doctor" replace />;
+    return <Navigate to="/patient" replace />;
+  }
+  return <LoginPage />;
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<RootRedirect />} />
-      <Route path="/login" element={<LoginPage />} />
+      {/* Root - ALWAYS show homepage (public landing page) */}
+      <Route path="/" element={<HomePage />} />
+
+      {/* Auth pages - redirect to dashboard if already logged in */}
+      <Route path="/login" element={<LoginRedirect />} />
       <Route path="/register" element={<RegisterPage />} />
 
       {/* Admin */}
@@ -92,6 +106,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/shifts"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminShifts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/reports"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
@@ -104,6 +126,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminSettings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/scores"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminScores />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/payments"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminPayments />
           </ProtectedRoute>
         }
       />
@@ -142,6 +180,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/doctor/shifts"
+        element={
+          <ProtectedRoute allowedRoles={["doctor"]}>
+            <DoctorShifts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/doctor/records"
         element={
           <ProtectedRoute allowedRoles={["doctor"]}>
@@ -154,6 +200,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["doctor"]}>
             <DoctorImages />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/payments"
+        element={
+          <ProtectedRoute allowedRoles={["doctor"]}>
+            <DoctorPayments />
           </ProtectedRoute>
         }
       />
@@ -212,6 +266,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["patient"]}>
             <PatientDentalScore />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/payments"
+        element={
+          <ProtectedRoute allowedRoles={["patient"]}>
+            <PatientPayments />
           </ProtectedRoute>
         }
       />

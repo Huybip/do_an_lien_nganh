@@ -2,10 +2,10 @@
   "name": "vinamec-dental-backend",
   "version": "1.0.0",
   "description": "VinaMec Dental Care System – Backend API",
-  "main": "src/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "seed": "node src/utils/seed.js"
   },
   "dependencies": {
@@ -20,8 +20,10 @@
     "mongoose": "^8.1.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4",
     "socket.io": "^4.8.3",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "vietqr": "^1.1.9"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"
