@@ -8,7 +8,8 @@ export function useApi(apiFn, deps = [], immediate = true) {
         setError(null);
         try {
             const res = await apiFn();
-            setData(res.data?.data ?? res.data);
+            const resolved = res.data?.data ?? res.data;
+            setData(resolved);
         }
         catch (e) {
             setError(e.response?.data?.message || e.message || 'An error occurred');

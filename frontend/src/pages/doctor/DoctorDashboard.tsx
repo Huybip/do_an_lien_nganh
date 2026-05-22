@@ -135,7 +135,6 @@ export default function DoctorDashboard() {
           </div>
         </div>
 
-<<<<<<< HEAD
         <div className="p-6 lg:p-8 space-y-5 max-w-7xl mx-auto">
 
           {/* Hero Banner */}
@@ -167,17 +166,6 @@ export default function DoctorDashboard() {
                 ))}
               </div>
             </div>
-=======
-        <div className="space-y-6 p-8">
-          <div className="card bg-gradient-dental text-white border-0">
-            <p className="text-dental-100 text-sm">Good morning,</p>
-            <h2 className="font-display font-bold text-2xl mt-1 text-white">
-              Dr. {user?.name?.split(" ").pop()}
-            </h2>
-            <p className="text-dental-200 text-sm mt-1">
-              You have {stats.todayAppts} appointments today
-            </p>
->>>>>>> bfd696e03a1e643feb1eb1deeedce346219624dc
           </div>
 
           {/* Stats Cards */}
@@ -257,7 +245,6 @@ export default function DoctorDashboard() {
                 <p className="text-sm text-slate-400">Các lịch hẹn sẽ hiển thị ở đây</p>
               </div>
             ) : (
-<<<<<<< HEAD
               <div className="divide-y divide-slate-50">
                 {upcoming.map((apt) => {
                   const cfg = statusConfig[apt.status] || statusConfig.pending;
@@ -276,53 +263,6 @@ export default function DoctorDashboard() {
                           <span className="flex items-center gap-1 text-xs text-slate-400">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                             {apt.patientName}
-=======
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-gray-200">
-                    <tr className="text-gray-600 font-semibold">
-                      <th className="text-left py-3 px-4">Bệnh nhân</th>
-                      <th className="text-left py-3 px-4">Ngày</th>
-                      <th className="text-left py-3 px-4">Giờ</th>
-                      <th className="text-left py-3 px-4">Dịch vụ</th>
-                      <th className="text-left py-3 px-4">Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {upcoming.map((apt) => (
-                      <tr
-                        key={apt.id}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition"
-                      >
-                        <td className="py-3 px-4 font-medium text-gray-900">
-                          {apt.patientName}
-                        </td>
-                        <td className="py-3 px-4 text-gray-600">{apt.date}</td>
-                        <td className="py-3 px-4 text-gray-600">{apt.time}</td>
-                        <td className="py-3 px-4 text-gray-600">
-                          {typeof apt.service === "string"
-                            ? apt.service
-                            : apt.service?.name}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${apt.status === "confirmed"
-                                ? "bg-green-100 text-green-700"
-                                : apt.status === "pending"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : apt.status === "completed"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-red-100 text-red-700"
-                              }`}
-                          >
-                            {apt.status === "confirmed"
-                              ? "Xác nhận"
-                              : apt.status === "pending"
-                                ? "Chờ"
-                                : apt.status === "completed"
-                                  ? "Hoàn tất"
-                                  : "Hủy"}
->>>>>>> bfd696e03a1e643feb1eb1deeedce346219624dc
                           </span>
                           <span className="flex items-center gap-1 text-xs text-slate-400">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

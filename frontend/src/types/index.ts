@@ -42,6 +42,9 @@ export interface Appointment {
   rejectionReason?: string;
   approvedBy?: string;
   approvedAt?: string;
+  serviceName?: string;
+  fee?: number;
+  isPaid?: boolean;
 }
 
 export interface MedicalRecord {

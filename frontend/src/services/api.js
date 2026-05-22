@@ -4,6 +4,19 @@ export const api = axios.create({
     baseURL: BASE_URL,
     headers: { "Content-Type": "application/json" },
 });
+// Unwrap axios response consistently:
+// - res = axios response { data: { success, data: {...} } }
+// - returns the inner data payload
+export function unwrap(res) {
+    // Handle case where response has already been unwrapped by an interceptor
+    const inner = res?.data?.data;
+    if (inner !== undefined) {
+        // Normal case: res.data.data exists
+        return inner;
+    }
+    // Fallback: res.data is the payload directly
+    return (res?.data ?? res);
+}
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token)
@@ -11,18 +24,24 @@ api.interceptors.request.use((config) => {
     return config;
 });
 api.interceptors.response.use((res) => {
-    // Transform _id to id for API responses
     if (res.data) {
         const transformData = (data) => {
             if (Array.isArray(data)) {
                 return data.map(transformData);
             }
-            if (data && typeof data === "object" && data._id && !data.id) {
-                return { ...data, id: data._id };
+            if (data && typeof data === "object") {
+                // If this object has a "data" property that is an array (paginated response),
+                // recursively transform each item inside it
+                if (Array.isArray(data.data)) {
+                    return { ...data, data: data.data.map(transformData) };
+                }
+                // Otherwise if it has _id, add id field
+                if (data._id && !data.id) {
+                    return { ...data, id: data._id };
+                }
             }
             return data;
         };
-        // Transform nested data, pagination results, etc
         if (res.data.data) {
             res.data.data = transformData(res.data.data);
         }
@@ -56,7 +75,11 @@ export const userApi = {
 };
 // ─── Doctors ────────────────────────────────────────────────────────────────
 export const doctorApi = {
-    getAll: () => api.get("/doctors"),
+    getAll: () => api.get("/doctors").then((res) => {
+        const paginated = res.data?.data;
+        const docs = Array.isArray(paginated?.data) ? paginated.data : (Array.isArray(paginated) ? paginated : []);
+        return { ...res, data: docs };
+    }),
     getById: (id) => api.get(`/doctors/${id}`),
     create: (data) => api.post("/doctors", data),
     update: (id, data) => api.put(`/doctors/${id}`, data),
@@ -65,7 +88,15 @@ export const doctorApi = {
 };
 // ─── Patients ───────────────────────────────────────────────────────────────
 export const patientApi = {
-    getAll: () => api.get("/patients"),
+    getAll: () => api.get("/patients").then((res) => {
+        const paginated = res.data?.data;
+        const patients = Array.isArray(paginated?.data)
+            ? paginated.data
+            : Array.isArray(paginated)
+                ? paginated
+                : [];
+        return { ...res, data: patients };
+    }),
     getById: (id) => api.get(`/patients/${id}`),
     getProfile: () => api.get("/patients/me"),
     update: (id, data) => api.put(`/patients/${id}`, data),
@@ -73,6 +104,7 @@ export const patientApi = {
 // ─── Appointments ───────────────────────────────────────────────────────────
 export const appointmentApi = {
     getAll: () => api.get("/appointments"),
+    getSlots: (doctorId, date) => api.get("/appointments/slots", { params: { doctorId, date } }),
     getMine: () => api.get("/appointments/me"),
     getById: (id) => api.get(`/appointments/${id}`),
     create: (data) => api.post("/appointments", data),
@@ -80,7 +112,28 @@ export const appointmentApi = {
     cancel: (id) => api.put(`/appointments/${id}/cancel`),
     approve: (id) => api.put(`/appointments/${id}/approve`),
     reject: (id, data) => api.put(`/appointments/${id}/reject`, data),
+    complete: (id, data) => api.put(`/appointments/${id}/complete`, data || {}),
     delete: (id) => api.delete(`/appointments/${id}`),
+};
+// ─── Shifts ──────────────────────────────────────────────────────────────────
+export const shiftApi = {
+    getMine: () => api.get("/shifts/me").then((res) => {
+        const paginated = res.data?.data;
+        const data = Array.isArray(paginated?.data) ? paginated.data : (Array.isArray(paginated) ? paginated : []);
+        return { ...res, data };
+    }),
+    getAll: (params) => api.get("/shifts", { params }).then((res) => {
+        const paginated = res.data?.data;
+        const data = Array.isArray(paginated?.data) ? paginated.data : (Array.isArray(paginated) ? paginated : []);
+        return { ...res, data };
+    }),
+    getByDoctor: (doctorId, date) => api.get(`/shifts/by-doctor/${doctorId}`, { params: date ? { date } : {} }),
+    getAvailable: (date) => api.get("/shifts/available", { params: { date } }),
+    getById: (id) => api.get(`/shifts/${id}`),
+    create: (data) => api.post("/shifts", data),
+    update: (id, data) => api.put(`/shifts/${id}`, data),
+    cancel: (id) => api.delete(`/shifts/${id}/cancel`),
+    delete: (id) => api.delete(`/shifts/${id}`),
 };
 // ─── Medical Records ────────────────────────────────────────────────────────
 export const recordApi = {
@@ -89,6 +142,7 @@ export const recordApi = {
     getById: (id) => api.get(`/records/${id}`),
     create: (data) => api.post("/records", data),
     update: (id, data) => api.put(`/records/${id}`, data),
+    delete: (id) => api.delete(`/records/${id}`),
 };
 // ─── Images ─────────────────────────────────────────────────────────────────
 export const imageApi = {
@@ -101,7 +155,11 @@ export const imageApi = {
 };
 // ─── Services ───────────────────────────────────────────────────────────────
 export const serviceApi = {
-    getAll: () => api.get("/services"),
+    getAll: () => api.get("/services").then((res) => {
+        const paginated = res.data?.data;
+        const docs = Array.isArray(paginated?.data) ? paginated.data : (Array.isArray(paginated) ? paginated : []);
+        return { ...res, data: docs };
+    }),
     getById: (id) => api.get(`/services/${id}`),
     create: (data) => api.post("/services", data),
     update: (id, data) => api.put(`/services/${id}`, data),
@@ -115,11 +173,25 @@ export const scoreApi = {
     editScore: (id, data) => api.post(`/scores/patient/${id}/edit`, data),
     getEditHistory: (id) => api.get(`/scores/patient/${id}/edit-history`),
 };
+// ─── Payments ────────────────────────────────────────────────────────────────
+export const paymentApi = {
+    getAll: (params) => api.get("/payments", { params }),
+    getMine: () => api.get("/payments/me"),
+    getById: (id) => api.get(`/payments/${id}`),
+    create: (data) => api.post("/payments", data),
+    update: (id, data) => api.put(`/payments/${id}`, data),
+    delete: (id) => api.delete(`/payments/${id}`),
+    getStats: () => api.get("/payments/stats"),
+    generateQR: (data) => api.post("/payments/qr/generate", data),
+    confirmQR: (paymentId) => api.post("/payments/qr/confirm", { paymentId }),
+};
 // ─── Chat ────────────────────────────────────────────────────────────────────
 export const chatApi = {
-    publicChat: (message) => api.post("/chat/public", { message }),
-    privateChat: (message, history) => api.post("/chat/private", { message, history }),
+    publicChat: (message, history = [], sessionId) => api.post("/chat/public", { message, history, sessionId }),
+    privateChat: (message, history = [], sessionId) => api.post("/chat/private", { message, history, sessionId }),
     getHistory: () => api.get("/chat/history"),
+    getSession: (sessionId) => api.get(`/chat/history/${sessionId}`),
+    deleteSession: (sessionId) => api.delete(`/chat/history/${sessionId}`),
 };
 // ─── Conversations (Peer-to-Peer) ────────────────────────────────────────────
 export const conversationApi = {

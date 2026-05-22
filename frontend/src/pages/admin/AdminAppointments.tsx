@@ -20,7 +20,7 @@ interface QRData {
 
 interface CompleteResult {
   appointment: Appointment;
-  payment: any;
+  payment: unknown;
   qrData: QRData;
   message: string;
 }
@@ -37,7 +37,6 @@ export default function AdminAppointments() {
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
 
   // Complete + QR modal state
-  const [showQRModal, setShowQRModal] = useState(false);
   const [completeResult, setCompleteResult] = useState<CompleteResult | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -62,15 +61,6 @@ export default function AdminAppointments() {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    try {
-      await appointmentApi.update(id, { status: newStatus });
-      refetch();
-    } catch (err) {
-      console.error("Failed to update status:", err);
-    }
-  };
-
   const handleComplete = async (apt: Appointment) => {
     if (!confirm(`Hoàn thành lịch hẹn của "${apt.patientName}"?\n\nHệ thống sẽ tự động tạo phiếu thu và mã QR thanh toán.`)) return;
     setCompletingId(apt.id);
@@ -78,11 +68,11 @@ export default function AdminAppointments() {
       const res = await appointmentApi.complete(apt.id, {});
       const result = res.data?.data;
       setCompleteResult(result);
-      setShowQRModal(true);
       alert(`Hoàn thành lịch hẹn "${apt.patientName}" thành công!\nMã QR thanh toán đã được tạo.`);
       refetch();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Không thể hoàn thành lịch hẹn.");
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      alert(apiErr.response?.data?.message || "Không thể hoàn thành lịch hẹn.");
     } finally {
       setCompletingId(null);
     }
@@ -94,11 +84,11 @@ export default function AdminAppointments() {
       const { paymentApi: pApi } = await import("../../services/api");
       await pApi.confirmQR(paymentId);
       alert("Đã xác nhận thanh toán thành công!");
-      setShowQRModal(false);
       setCompleteResult(null);
       refetch();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Xác nhận thất bại.");
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      alert(apiErr.response?.data?.message || "Xác nhận thất bại.");
     } finally {
       setConfirmingId(null);
     }
@@ -140,7 +130,6 @@ export default function AdminAppointments() {
       key: "patientName",
       header: "BỆNH NHÂN",
       render: (apt: Appointment) => (
-<<<<<<< HEAD
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
             {apt.patientName?.charAt(0).toUpperCase()}
@@ -148,15 +137,6 @@ export default function AdminAppointments() {
           <div>
             <p className="text-slate-700 font-medium">{apt.patientName}</p>
             <p className="text-xs text-slate-400">{apt.patient?.email}</p>
-=======
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-mint-400 to-dental-500 flex items-center justify-center text-white text-xs font-bold">
-            {apt.patient?.name?.charAt(0) || apt.patientName?.charAt(0) || "P"}
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">{apt.patient?.name || apt.patientName}</p>
-            <p className="text-xs text-gray-500">{apt.patient?.email || "—"}</p>
->>>>>>> bfd696e03a1e643feb1eb1deeedce346219624dc
           </div>
         </div>
       ),
@@ -532,7 +512,7 @@ export default function AdminAppointments() {
           paymentId={completeResult.qrData.paymentId}
           onConfirm={handleConfirmPayment}
           confirmingId={confirmingId}
-          onClose={() => { setShowQRModal(false); setCompleteResult(null); }}
+          onClose={() => { setCompleteResult(null); }}
         />
       )}
     </div>
@@ -575,7 +555,7 @@ function QRPaymentResultModal({
         <p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p>
         <p>STK: ${qrData.accountNo} - ${qrData.accountName}</p>
         <p>Noi dung: ${qrData.addInfo}</p>
-        <script>window.print();<\/script>
+        <script>window.print();</script>
       </body></html>
     `);
     win.document.close();
