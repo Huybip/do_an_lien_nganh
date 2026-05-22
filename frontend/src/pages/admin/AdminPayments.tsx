@@ -1010,10 +1010,10 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {[
-                    { label: "Ngân hàng", value: "MB Bank (MBB)" },
+                    { label: "Ngân hàng", value: "BIDV" },
                     { label: "Mã ngân hàng", value: "970422" },
-                    { label: "Số tài khoản", value: "280605666888" },
-                    { label: "Tên tài khoản", value: "Nguyen Thai Son" },
+                    { label: "Số tài khoản", value: "1231270139" },
+                    { label: "Tên tài khoản", value: "TRAN QUOC HUY" },
                     { label: "Nội dung CK", value: qrData.addInfo },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between px-4 py-3">
