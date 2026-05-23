@@ -81,16 +81,8 @@ export default function PatientPayments() {
     setQrLoading(true);
     setShowQR(true);
     try {
-      const res = await fetch("http://localhost:5000/api/payments/qr/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ amount, invoiceNumber }),
-      });
-      const data = await res.json();
-      if (data.success) setQrData(data.data);
+      const res = await paymentApi.generateQR({ amount, invoiceNumber });
+      if (res.data?.success) setQrData(res.data.data);
     } catch {} finally {
       setQrLoading(false);
     }
@@ -239,7 +231,7 @@ export default function PatientPayments() {
                     <p>📝 Nội dung: <strong>{qrData.addInfo}</strong></p>
                   </div>
                   <div className="bg-amber-50 rounded-xl p-3 text-xs text-amber-700">
-                    Sau khi chuyển khoản thành công, vui lòng mang biên laại đến quầy để xác nhận thanh toán.
+                    Sau khi chuyển khoản thành công, vui lòng mang biên lai đến quầy để xác nhận thanh toán.
                   </div>
                 </>
               ) : null}

@@ -5,7 +5,6 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { Line, Pie } from "react-chartjs-2";
 import {
-  
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement,
   Title, Tooltip, Legend, Filler, ArcElement,

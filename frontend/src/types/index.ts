@@ -22,11 +22,12 @@ export interface AuthState {
 export interface Appointment {
   id: string;
   patientId: string;
+  patient?: { _id: string; name: string; email: string };
   patientName: string;
-  patient?: User;
   doctorId: string;
   doctorName: string;
   service: Service | string;
+  serviceName?: string;
   date: string;
   time: string;
   status:
@@ -42,7 +43,6 @@ export interface Appointment {
   rejectionReason?: string;
   approvedBy?: string;
   approvedAt?: string;
-  serviceName?: string;
   fee?: number;
   isPaid?: boolean;
 }

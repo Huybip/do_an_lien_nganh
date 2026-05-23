@@ -245,7 +245,7 @@ export default function DoctorPayments() {
 
       {/* QR Modal */}
       {selectedPayment && (
-        <QRModal payment={selectedPayment} open={showQRModal} onClose={() => { setShowQRModal(false); setSelectedPayment(null); }} />
+        <QRModal payment={selectedPayment} open={showQRModal} onClose={() => { setShowQRModal(false); setSelectedPayment(null); }} onSuccess={loadPayments} />
       )}
 
       {/* QR creation modal (no payment selected) */}
@@ -256,37 +256,43 @@ export default function DoctorPayments() {
   );
 }
 
-function QRModal({ payment, open, onClose }: {
-  payment: Payment; open: boolean; onClose: () => void;
+function QRModal({ payment, open, onClose, onSuccess }: {
+  payment: Payment; open: boolean; onClose: () => void; onSuccess?: () => void;
 }) {
   const [qrData, setQrData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
-    if (open && payment.status === "pending") {
-      generateQR();
-    }
+    if (!open) { setQrData(null); return; }
+    if (payment.status === "pending") generateQR();
   }, [open]);
 
   const generateQR = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/payments/qr/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          amount: payment.amount,
-          invoiceNumber: payment.invoiceNumber,
-          patientName: payment.patientName,
-        }),
+      const res = await paymentApi.generateQR({
+        amount: payment.amount,
+        invoiceNumber: payment.invoiceNumber,
+        patientName: payment.patientName,
       });
-      const data = await res.json();
-      if (data.success) setQrData(data.data);
+      if (res.data?.success) setQrData(res.data.data);
     } catch {} finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    try {
+      await paymentApi.confirmQR(payment._id);
+      alert("Da xac nhan thanh toan thanh cong!");
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Xac nhan that bai.");
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -295,39 +301,89 @@ function QRModal({ payment, open, onClose }: {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-        <div className="bg-gradient-to-r from-violet-50 to-purple-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">QR Thanh toán</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+        {/* Header */}
+        <div
+          className="px-6 py-4 flex items-center justify-between"
+          style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center">
+              <span className="text-white font-black text-base">MB</span>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">QR Thanh toan</h2>
+              <p className="text-blue-200 text-xs">Ma hoa don: {payment.invoiceNumber}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light">X</button>
         </div>
+
         <div className="p-6 space-y-4 text-center">
           {loading ? (
-            <div className="py-8">Đang tạo mã QR...</div>
+            <div className="py-8 text-slate-500">Dang tao ma QR...</div>
           ) : qrData ? (
             <>
-              <div className="bg-white rounded-2xl p-4 inline-block shadow border border-slate-200">
-                <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52" />
+              {/* Amount */}
+              <div
+                className="rounded-xl p-4 text-center"
+                style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
+              >
+                <p className="text-blue-200 text-xs font-bold uppercase">So tien thanh toan</p>
+                <p className="text-3xl font-black text-white mt-1">
+                  {Number(qrData.amount).toLocaleString("vi-VN")}
+                  <span className="text-lg font-bold ml-1">VND</span>
+                </p>
               </div>
-              <div className="bg-violet-50 rounded-xl p-4">
-                <p className="text-xs text-violet-600 font-semibold uppercase">Số tiền</p>
-                <p className="text-2xl font-black text-violet-700">{Number(qrData.amount).toLocaleString("vi-VN")} đ</p>
+
+              {/* QR Code */}
+              <div className="bg-white rounded-xl p-4 text-center border border-slate-200 shadow-sm">
+                <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52 mx-auto rounded-xl" />
+                <p className="text-xs text-slate-400 mt-2">Quet ma QR bang ung dung ngan hang</p>
               </div>
-              <div className="text-left bg-slate-50 rounded-xl p-3">
-                {[
-                  { label: "Ngân hàng", value: "MB Bank (MBB)" },
-                  { label: "STK", value: "280605666888" },
-                  { label: "Tên", value: "Nguyen Thai Son" },
-                ].map((item) => (
-                  <div key={item.label} className="flex justify-between py-1.5 border-b border-slate-100 last:border-0">
-                    <span className="text-xs text-slate-400">{item.label}</span>
-                    <span className="text-sm font-semibold text-slate-700">{item.value}</span>
+
+              {/* Bank details */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div
+                  className="px-4 py-2.5"
+                  style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center">
+                      <span className="text-white font-black text-[9px]">MB</span>
+                    </div>
+                    <p className="text-white text-xs font-bold uppercase tracking-wider">MBBank - Thong tin tai khoan</p>
                   </div>
-                ))}
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {[
+                    { label: "So tai khoan", value: "280605666888" },
+                    { label: "Ten tai khoan", value: "Nguyen Thai Son" },
+                    { label: "Noi dung CK", value: qrData.addInfo },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between px-4 py-3">
+                      <span className="text-xs font-medium text-slate-400">{item.label}</span>
+                      <span className="text-sm font-bold text-slate-700">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Confirm button (only for pending) */}
+              {payment.status === "pending" && (
+                <button
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
+                >
+                  {confirming ? "Dang xu ly..." : "Da nhan duoc tien - Xac nhan thanh toan"}
+                </button>
+              )}
             </>
           ) : (
             <div className="py-8 text-slate-500">
-              <p>Mã QR chỉ hiển thị cho phiếu <strong>chờ thanh toán</strong>.</p>
-              <p className="text-sm mt-2">Trạng thái hiện tại: <strong>{statusConfig[payment.status]?.label}</strong></p>
+              <p>Ma QR chi hien thi cho phieu <strong>cho thanh toan</strong>.</p>
+              <p className="text-sm mt-2">Trang thai hien tai: <strong>{statusConfig[payment.status]?.label}</strong></p>
             </div>
           )}
         </div>
@@ -339,33 +395,74 @@ function QRModal({ payment, open, onClose }: {
 function QRCreateModal({ open, onClose, onSuccess }: {
   open: boolean; onClose: () => void; onSuccess: () => void;
 }) {
-  const [amount, setAmount] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [step, setStep] = useState<"setup" | "qr">("setup");
   const [patientName, setPatientName] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
   const [qrData, setQrData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [createdPaymentId, setCreatedPaymentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setStep("setup");
+      setQrData(null);
+      setPatientName("");
+      setInvoiceNumber("");
+      setAmount("");
+      setDescription("");
+      setCreatedPaymentId(null);
+    }
+  }, [open]);
 
   const handleGenerate = async () => {
-    if (!amount) return;
+    if (!amount || Number(amount) <= 0) {
+      alert("Vui lòng nhập số tiền hợp lệ.");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/payments/qr/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          amount: Number(amount),
-          invoiceNumber: invoiceNumber || undefined,
-          patientName: patientName || undefined,
-        }),
+      // Generate QR
+      const res = await paymentApi.generateQR({
+        amount: Number(amount),
+        invoiceNumber: invoiceNumber || undefined,
+        patientName: patientName || undefined,
+        description: description || undefined,
       });
-      const data = await res.json();
-      if (data.success) setQrData(data.data);
-    } catch {} finally {
+      if (res.data?.success) {
+        setQrData(res.data.data);
+        setStep("qr");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Không thể tạo mã QR.");
+    } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!createdPaymentId) return;
+    setConfirmLoading(true);
+    try {
+      await paymentApi.confirmQR(createdPaymentId);
+      alert("Đã xác nhận thanh toán thành công!");
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Xác nhận thất bại.");
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handlePrintQR = () => {
+    if (!qrData?.qrDataUrl) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial;text-align:center;padding:40px;}h2{color:#0c4a6e;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${invoiceNumber || ""}</p><p>Benh nhan: ${patientName || ""}</p><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p><p>STK: 280605666888 - Nguyen Thai Son</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
+    win.document.close();
   };
 
   if (!open) return null;
@@ -378,52 +475,129 @@ function QRCreateModal({ open, onClose, onSuccess }: {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
         </div>
         <div className="p-6 space-y-4">
-          {qrData ? (
-            <div className="text-center space-y-4">
-              <div className="bg-white rounded-2xl p-4 inline-block shadow border border-slate-200">
-                <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52" />
-              </div>
-              <div className="bg-emerald-50 rounded-xl p-4">
-                <p className="text-xs text-emerald-600 font-bold uppercase">Số tiền</p>
-                <p className="text-3xl font-black text-emerald-700">{Number(qrData.amount).toLocaleString("vi-VN")} đ</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-4 text-left text-sm space-y-2">
-                <p className="font-bold text-blue-700">Thông tin tài khoản:</p>
-                <p>🏦 Ngân hàng: <strong>MB Bank (MBB)</strong></p>
-                <p>🔢 STK: <strong>280605666888</strong></p>
-                <p>👤 Tên: <strong>Nguyen Thai Son</strong></p>
-              </div>
-              <button onClick={() => { setQrData(null); onSuccess(); }} className="w-full py-2 rounded-xl border-2 border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition">
-                Tạo QR khác
-              </button>
-            </div>
-          ) : (
+          {step === "setup" ? (
             <>
-              <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl p-4 text-white text-center">
-                <p className="font-bold">STK: 280605666888</p>
-                <p className="text-violet-100 text-sm">Nguyen Thai Son - MBBank</p>
+              {/* MBBank info banner */}
+              <div
+                className="rounded-xl p-4 text-white text-center"
+                style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-white font-black text-base">MB</span>
+                </div>
+                <p className="font-bold text-sm">QR MBBank VietQR</p>
+                <p className="text-blue-200 text-xs mt-1">STK: 280605666888 - Nguyen Thai Son</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Tên bệnh nhân</label>
-                <input className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" placeholder="Nhập tên bệnh nhân" value={patientName} onChange={(e) => setPatientName(e.target.value)} />
+                <input
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
+                  placeholder="Nhập tên bệnh nhân"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Mã hóa đơn</label>
-                <input className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" placeholder="VD: INV-202505-0001" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+                <input
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
+                  placeholder="VD: INV-202506-0001"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Số tiền (VNĐ) *</label>
-                <input type="number" className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 font-semibold" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Mô tả</label>
+                <input
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
+                  placeholder="Mô tả dịch vụ"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Số tiền (VNĐ) <span className="text-red-500">*</span></label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 font-semibold"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
               </div>
               <button
                 onClick={handleGenerate}
                 disabled={loading || !amount}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)" }}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50 transition-all hover:-translate-y-0.5"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)", boxShadow: "0 4px 14px rgba(124,58,237,0.4)" }}
               >
-                {loading ? "Đang tạo..." : "Tạo mã QR"}
+                {loading ? "Đang tạo mã QR..." : "Tạo mã QR"}
               </button>
             </>
+          ) : (
+            /* QR Display step */
+            <div className="space-y-4">
+              {/* Amount display */}
+              <div
+                className="rounded-xl p-4 text-center"
+                style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
+              >
+                <p className="text-blue-200 text-xs font-bold uppercase">So tien thanh toan</p>
+                <p className="text-3xl font-black text-white mt-1">
+                  {Number(qrData.amount).toLocaleString("vi-VN")}
+                  <span className="text-lg font-bold ml-1">VND</span>
+                </p>
+              </div>
+
+              {/* QR Code */}
+              <div className="bg-white rounded-xl p-4 text-center border border-slate-200 shadow-sm">
+                <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52 mx-auto rounded-xl" />
+                <p className="text-xs text-slate-400 mt-2">Quet ma QR bang ung dung ngan hang</p>
+              </div>
+
+              {/* Bank details */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div
+                  className="px-4 py-2.5"
+                  style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center">
+                      <span className="text-white font-black text-[9px]">MB</span>
+                    </div>
+                    <p className="text-white text-xs font-bold uppercase tracking-wider">MBBank - Thong tin tai khoan</p>
+                  </div>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {[
+                    { label: "So tai khoan", value: "280605666888" },
+                    { label: "Ten tai khoan", value: "Nguyen Thai Son" },
+                    { label: "Noi dung CK", value: qrData.addInfo },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between px-4 py-3">
+                      <span className="text-xs font-medium text-slate-400">{item.label}</span>
+                      <span className="text-sm font-bold text-slate-700">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handlePrintQR}
+                  className="py-3 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                >
+                  In QR
+                </button>
+                <button
+                  onClick={() => setStep("setup")}
+                  className="py-3 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                >
+                  Tao QR khac
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

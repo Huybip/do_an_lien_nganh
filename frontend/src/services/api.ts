@@ -224,6 +224,8 @@ export const paymentApi = {
   }) => api.post("/payments/qr/generate", data),
   confirmQR: (paymentId: string) =>
     api.post("/payments/qr/confirm", { paymentId }),
+  confirmPayment: (paymentId: string, reason?: string) =>
+    api.post("/payments/confirm", { paymentId, reason }),
 };
 
 // ─── Chat ────────────────────────────────────────────────────────────────────
