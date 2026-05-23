@@ -20,7 +20,7 @@ interface QRData {
 
 interface CompleteResult {
   appointment: Appointment;
-  payment: unknown;
+  payment: any;
   qrData: QRData;
   message: string;
 }
@@ -68,11 +68,10 @@ export default function AdminAppointments() {
       const res = await appointmentApi.complete(apt.id, {});
       const result = res.data?.data;
       setCompleteResult(result);
-      alert(`Hoàn thành lịch hẹn "${apt.patientName}" thành công!\nMã QR thanh toán đã được tạo.`);
+      alert(`Hoan thanh lich hen "${apt.patientName}" thanh cong!\nMa QR thanh toan da duoc tao.`);
       refetch();
-    } catch (err) {
-      const apiErr = err as { response?: { data?: { message?: string } } };
-      alert(apiErr.response?.data?.message || "Không thể hoàn thành lịch hẹn.");
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Không thể hoàn thành lịch hẹn.");
     } finally {
       setCompletingId(null);
     }
@@ -86,9 +85,8 @@ export default function AdminAppointments() {
       alert("Đã xác nhận thanh toán thành công!");
       setCompleteResult(null);
       refetch();
-    } catch (err) {
-      const apiErr = err as { response?: { data?: { message?: string } } };
-      alert(apiErr.response?.data?.message || "Xác nhận thất bại.");
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Xác nhận thất bại.");
     } finally {
       setConfirmingId(null);
     }
@@ -555,7 +553,7 @@ function QRPaymentResultModal({
         <p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p>
         <p>STK: ${qrData.accountNo} - ${qrData.accountName}</p>
         <p>Noi dung: ${qrData.addInfo}</p>
-        <script>window.print();</script>
+        <script>window.print();<\/script>
       </body></html>
     `);
     win.document.close();

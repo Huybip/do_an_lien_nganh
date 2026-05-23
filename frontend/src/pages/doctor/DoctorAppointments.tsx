@@ -39,7 +39,6 @@ export default function DoctorAppointments() {
   // Complete + QR modal state
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const [showQRModal, setShowQRModal] = useState(false);
   const [completeResult, setCompleteResult] = useState<any>(null);
 
   const today = new Date().toISOString().split("T")[0];
@@ -50,19 +49,6 @@ export default function DoctorAppointments() {
   const filtered = (appointments || []).filter(
     (a) => filter === "all" || a.status === filter,
   );
-
-  const updateStatus = async (id: string, status: string) => {
-    try {
-      setActionLoading(true);
-      await appointmentApi.update(id, { status });
-      toast.success("Appointment updated successfully");
-      refetch();
-    } catch (error) {
-      toast.error("Failed to update appointment");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleApprove = async (id: string) => {
     try {
@@ -85,7 +71,6 @@ export default function DoctorAppointments() {
       const res = await appointmentApi.complete(apt.id, {});
       const result = res.data?.data;
       setCompleteResult(result);
-      setShowQRModal(true);
       setShowModal(false);
       refetch();
     } catch (err: any) {
@@ -101,7 +86,6 @@ export default function DoctorAppointments() {
       const { paymentApi: pApi } = await import("../../services/api");
       await pApi.confirmQR(paymentId);
       toast.success("Da xac nhan thanh toan thanh cong!");
-      setShowQRModal(false);
       setCompleteResult(null);
       refetch();
     } catch (err: any) {
@@ -272,7 +256,7 @@ export default function DoctorAppointments() {
   return (
     <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
       <DoctorSidebar />
-      <div className="flex-1 lg:ml-0 min-w-0">
+      <div className="flex-1 lg:ml-0 min-w-0 overflow-y-auto">
         <div className="glass-header sticky top-0 z-10 px-6 lg:px-8 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Lịch hẹn</h1>
@@ -589,7 +573,7 @@ export default function DoctorAppointments() {
             paymentId={completeResult.qrData.paymentId}
             onConfirm={handleConfirmPayment}
             confirmingId={confirmingId}
-            onClose={() => { setShowQRModal(false); setCompleteResult(null); }}
+            onClose={() => { setCompleteResult(null); }}
           />
         )}
       </div>

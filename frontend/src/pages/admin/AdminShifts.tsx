@@ -13,8 +13,7 @@ const SHIFT_CONFIG = {
 };
 
 export default function AdminShifts() {
-  const { data: shifts, loading, refetch } = useApi<any[]>(() => shiftApi.getAll());
-  const { toast } = useToast();
+  const { data: shifts, loading } = useApi<any[]>(() => shiftApi.getAll());
   const [filter, setFilter] = useState({ date: "", doctorId: "", shiftType: "" });
   const [selectedShift, setSelectedShift] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -112,7 +111,6 @@ export default function AdminShifts() {
   const todayShifts  = activeShifts.filter((s) => s.date === today);
   const morningShifts  = activeShifts.filter((s) => s.shiftType === "morning");
   const afternoonShifts = activeShifts.filter((s) => s.shiftType === "afternoon");
-  const eveningShifts   = activeShifts.filter((s) => s.shiftType === "evening");
 
   return (
     <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>

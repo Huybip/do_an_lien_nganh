@@ -35,6 +35,19 @@ interface AppointmentStats {
   cancelledAppointments: number;
 }
 
+interface DashAppointments {
+  total?: number;
+  completed?: number;
+  cancelled?: number;
+  newThisMonth?: number;
+}
+
+interface DashData {
+  appointments?: DashAppointments;
+  users?: { total?: number; newThisMonth?: number };
+  revenue?: { total?: number; month?: number };
+}
+
 interface PaymentStats {
   totalRevenue: number;
   monthRevenue: number;
@@ -72,11 +85,6 @@ const METHOD_COLORS: Record<string, string> = {
   other: "#8b5cf6",
 };
 
-const CHART_COLORS = [
-  "#0ea5e9", "#10b981", "#f59e0b", "#ec4899",
-  "#6366f1", "#06b6d4", "#8b5cf6",
-];
-
 export default function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("month");
@@ -104,17 +112,17 @@ export default function AdminReports() {
       ]);
 
       // Dashboard data
-      let dashData = { appointments: {}, users: {}, revenue: { total: 0, month: 0 } };
+      let dashData: DashData = { appointments: {}, users: {}, revenue: { total: 0, month: 0 } };
       if (dashRes.status === "fulfilled") {
-        dashData = dashRes.value.data?.data || {};
+        dashData = dashRes.value.data?.data || { appointments: {}, users: {}, revenue: { total: 0, month: 0 } };
       } else {
         console.error("Dashboard API failed:", dashRes.reason);
       }
 
       // Payment stats
-      let payData = { totalRevenue: 0, monthRevenue: 0, pendingPayments: 0, totalPayments: 0, methodBreakdown: [], monthlyTrend: [] };
+      let payData: PaymentStats = { totalRevenue: 0, monthRevenue: 0, pendingPayments: 0, totalPayments: 0, methodBreakdown: [], monthlyTrend: [] };
       if (payRes.status === "fulfilled") {
-        payData = payRes.value.data?.data || {};
+        payData = payRes.value.data?.data || { totalRevenue: 0, monthRevenue: 0, pendingPayments: 0, totalPayments: 0, methodBreakdown: [], monthlyTrend: [] };
       } else {
         console.error("Payment stats API failed:", payRes.reason);
       }
@@ -171,7 +179,7 @@ export default function AdminReports() {
   };
 
   // ── Chart data ────────────────────────────────────────────────
-  const revenueLineData = paymentStats?.monthlyTrend?.length > 0
+  const revenueLineData = paymentStats && paymentStats.monthlyTrend && paymentStats.monthlyTrend.length > 0
     ? {
         labels: paymentStats.monthlyTrend.map((t) => {
           const m = String(t._id.month).padStart(2, "0");
@@ -195,7 +203,7 @@ export default function AdminReports() {
     : null;
 
   const methodDoughnutData =
-    paymentStats?.methodBreakdown?.length > 0
+    paymentStats && paymentStats.methodBreakdown && paymentStats.methodBreakdown.length > 0
       ? {
           labels: paymentStats.methodBreakdown.map(
             (m) => METHOD_LABELS[m._id] || m._id
@@ -214,7 +222,7 @@ export default function AdminReports() {
       : null;
 
   const methodBarData =
-    paymentStats?.methodBreakdown?.length > 0
+    paymentStats && paymentStats.methodBreakdown && paymentStats.methodBreakdown.length > 0
       ? {
           labels: paymentStats.methodBreakdown.map(
             (m) => METHOD_LABELS[m._id] || m._id
@@ -788,7 +796,7 @@ Báo cáo được tạo tự động bởi hệ thống
                       </tr>
                     </thead>
                     <tbody>
-                      {(paymentStats.methodBreakdown || []).map((m, i) => {
+                      {(paymentStats.methodBreakdown || []).map((m) => {
                         const pct =
                           paymentStats.totalRevenue > 0
                             ? ((m.total / paymentStats.totalRevenue) * 100).toFixed(1)

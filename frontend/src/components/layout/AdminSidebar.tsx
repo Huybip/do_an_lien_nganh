@@ -245,7 +245,7 @@ export default function AdminSidebar() {
       </div>
 
       {/* Desktop sidebar */}
-      <div className={`hidden lg:flex flex-col h-screen transition-all duration-300 ${
+      <div className={`hidden lg:block sticky top-0 h-screen flex-shrink-0 transition-all duration-300 ${
         isOpen ? "w-60" : "w-20"
       }`} style={{ background: "linear-gradient(180deg, #0c4a6e 0%, #0369a1 100%)" }}>
         {NavContent()}

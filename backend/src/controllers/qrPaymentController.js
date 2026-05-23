@@ -2,19 +2,12 @@
 
 const Payment = require("../models/Payment");
 const Appointment = require("../models/Appointment");
-const User = require("../models/User");
-const Patient = require("../models/Patient");
 const { sendSuccess, sendError } = require("../utils/response");
-
-// ── SePay VietQR config ────────────────────────────────────────────────────────────
-const SEPay_QR_URL = "https://qr.sepay.vn/img";
-const BANK_NAME = "MBBank";
-const ACCOUNT_NO = "280605666888";
-const ACCOUNT_NAME = "Nguyen Thai Son";
+const { buildPaymentQR, PAYMENT } = require("../config/payment");
 
 /**
  * POST /api/payments/qr/generate
- * Generate QR code image for a payment using SePay
+ * Generate QR code using shared BIDV VietQR config
  */
 const generateQR = async (req, res) => {
   try {
@@ -28,25 +21,17 @@ const generateQR = async (req, res) => {
       ? `Thanh toan hoa don ${invoiceNumber}`
       : description || "Thanh toan phong kham nha khoa";
 
-    const params = new URLSearchParams({
-      acc: ACCOUNT_NO,
-      bank: BANK_NAME,
-      amount: String(Math.round(amount)),
-      des: des,
-      template: "compact",
-    });
-
-    const qrUrl = `${SEPay_QR_URL}?${params.toString()}`;
+    const qr = buildPaymentQR(amount, invoiceNumber || description || "");
 
     return sendSuccess(res, 200, "QR code generated", {
-      qrDataUrl: qrUrl,
-      qrString: qrUrl,
-      bankId: BANK_NAME,
-      accountNo: ACCOUNT_NO,
-      accountName: ACCOUNT_NAME,
+      qrDataUrl: qr.qrDataUrl,
+      qrString: qr.qrString,
+      bankId: PAYMENT.BANK_NAME,
+      accountNo: PAYMENT.ACCOUNT_NO,
+      accountName: PAYMENT.ACCOUNT_NAME,
       amount,
       invoiceNumber,
-      addInfo: des,
+      addInfo: qr.addInfo,
     });
   } catch (err) {
     return sendError(res, 500, "Failed to generate QR code: " + err.message);

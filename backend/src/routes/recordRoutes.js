@@ -33,6 +33,6 @@ router.post('/',   auth, authorize('admin', 'doctor'), validate(createSchema), c
 // Shared view (ownership enforced in controller)
 router.get('/:id',    auth, getById);
 router.put('/:id',    auth, authorize('admin', 'doctor'), update);
-router.delete('/:id', auth, authorize('admin'), remove);
+router.delete('/:id', auth, authorize('admin', 'doctor'), remove);
 
 module.exports = router;

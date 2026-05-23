@@ -6,38 +6,16 @@ const User = require("../models/User");
 const Shift = require("../models/Shift");
 const Service = require("../models/Service");
 const Payment = require("../models/Payment");
-// ── SePay VietQR config ────────────────────────────────────────────────────────────
-// QR generation: URL public, khong can API key
-// API key chi dung cho webhook xac nhan giao dich
-const SEPay_KEY = "spsk_live_yauyzM9vqm4vh1Fvo3GbjrL9eKW5sEMN";
-const SEPay_QR_URL = "https://qr.sepay.vn/img";
-const BANK_NAME = "MBBank";  // Short name MBBank cho SePay
-const ACCOUNT_NO = "280605666888";
-const ACCOUNT_NAME = "Nguyen Thai Son";
-
-function generatePaymentQR(amount, invoiceNumber) {
-  const des = invoiceNumber
-    ? `Thanh toan hoa don ${invoiceNumber}`
-    : "Thanh toan phong kham nha khoa";
-
-  const params = new URLSearchParams({
-    acc: ACCOUNT_NO,
-    bank: BANK_NAME,
-    amount: String(Math.round(amount)),
-    des: des,
-    template: "compact",
-  });
-
-  return {
-    qrDataUrl: `${SEPay_QR_URL}?${params.toString()}`,
-    qrString: `${SEPay_QR_URL}?${params.toString()}`,
-    addInfo: des,
-  };
-}
 const { sendSuccess, sendError, sendPaginated } = require("../utils/response");
 const { getPagination, buildSort } = require("../utils/pagination");
+const { buildPaymentQR, PAYMENT } = require("../config/payment");
 
 const ALLOWED_SORT = ["date", "time", "status", "createdAt"];
+
+// Aliases for backward compatibility with existing qrData response
+const ACCOUNT_NO = PAYMENT.ACCOUNT_NO;
+const ACCOUNT_NAME = PAYMENT.ACCOUNT_NAME;
+const BANK_NAME = PAYMENT.BANK_NAME;
 
 // GET /api/appointments  [admin, doctor]
 const getAll = async (req, res) => {
@@ -492,17 +470,16 @@ const complete = async (req, res) => {
     let qrData = null;
 
     if (fee > 0) {
-      // Count existing payments this month for invoice number
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
+      // Count existing payments this month for invoice number (using safe Date constructor)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd   = new Date(year, month, 1);
       const count = await Payment.countDocuments({
-        createdAt: {
-          $gte: new Date(`${year}-${month}-01`),
-          $lt: new Date(`${year}-${month + 1}-01`),
-        },
+        createdAt: { $gte: monthStart, $lt: monthEnd },
       });
-      const invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(4, "0")}`;
+      const invoiceNumber = `INV-${year}${String(month).padStart(2, "0")}-${String(count + 1).padStart(4, "0")}`;
 
       payment = await Payment.create({
         patient: appointment.patient,
@@ -527,7 +504,7 @@ const complete = async (req, res) => {
       });
 
       // ── Generate QR code ──────────────────────────────────────────────────────
-      const qr = generatePaymentQR(fee, invoiceNumber);
+      const qr = buildPaymentQR(fee, invoiceNumber);
       qrData = {
         invoiceNumber,
         amount: fee,

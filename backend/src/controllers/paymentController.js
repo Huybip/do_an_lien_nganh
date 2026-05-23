@@ -12,6 +12,7 @@ const ALLOWED_SORT = ["createdAt", "paidAt", "amount", "status"];
 // GET /api/payments  [admin]
 const getAll = async (req, res) => {
   try {
+    console.log("[PAYMENT GETALL] query:", req.query);
     const { page, limit, skip } = getPagination(req.query);
     const sort = buildSort(req.query, ALLOWED_SORT);
     const filter = {};
@@ -21,8 +22,14 @@ const getAll = async (req, res) => {
     if (req.query.method) filter.method = req.query.method;
     if (req.query.from || req.query.to) {
       filter.paidAt = {};
-      if (req.query.from) filter.paidAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.paidAt.$lte = new Date(req.query.to + "T23:59:59");
+      if (req.query.from) {
+        const fromDate = new Date(req.query.from);
+        if (!isNaN(fromDate.getTime())) filter.paidAt.$gte = fromDate;
+      }
+      if (req.query.to) {
+        const toDate = new Date(req.query.to + "T23:59:59");
+        if (!isNaN(toDate.getTime())) filter.paidAt.$lte = toDate;
+      }
     }
 
     const [payments, total] = await Promise.all([
@@ -38,6 +45,7 @@ const getAll = async (req, res) => {
 
     return sendPaginated(res, payments, total, page, limit);
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -59,6 +67,7 @@ const getMine = async (req, res) => {
 
     return sendPaginated(res, payments, total, page, limit);
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -82,6 +91,7 @@ const getById = async (req, res) => {
 
     return sendSuccess(res, 200, "Payment retrieved", payment);
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -89,6 +99,7 @@ const getById = async (req, res) => {
 // POST /api/payments  [admin]
 const create = async (req, res) => {
   try {
+    console.log("[PAYMENT CREATE] body:", JSON.stringify(req.body));
     const {
       patientId,
       appointmentId,
@@ -99,6 +110,7 @@ const create = async (req, res) => {
       discount,
       tax,
       notes,
+      reason,
     } = req.body;
 
     // Resolve patient
@@ -120,10 +132,12 @@ const create = async (req, res) => {
       return sendError(res, 400, "Invalid patient.");
     }
 
-    const payment = await Payment.create({
+    const status = req.body.status || "pending";
+    const paidAt = status === "paid" ? new Date() : null;
+
+    const paymentData = {
       patient: patientUser._id,
       patientName,
-      appointment: appointmentId || undefined,
       amount,
       method: method || "cash",
       description,
@@ -131,11 +145,17 @@ const create = async (req, res) => {
       discount: discount || 0,
       tax: tax || 0,
       notes,
-      status: "paid",
-      paidAt: new Date(),
+      reason,
+      status,
+      paidAt,
       recordedBy: req.user._id,
       recordedByName: req.user.name,
-    });
+    };
+    if (appointmentId) paymentData.appointment = appointmentId;
+
+    console.log("[PAYMENT CREATE] paymentData:", JSON.stringify(paymentData));
+    const payment = await Payment.create(paymentData);
+    console.log("[PAYMENT CREATE] created:", payment._id, payment.invoiceNumber);
 
     // Update appointment payment status
     if (appointmentId) {
@@ -149,6 +169,7 @@ const create = async (req, res) => {
 
     return sendSuccess(res, 201, "Payment recorded successfully", payment);
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -159,7 +180,7 @@ const update = async (req, res) => {
     const payment = await Payment.findById(req.params.id);
     if (!payment) return sendError(res, 404, "Payment not found.");
 
-    const allowed = ["status", "method", "notes", "amount", "discount", "tax"];
+    const allowed = ["status", "method", "notes", "amount", "discount", "tax", "reason"];
     allowed.forEach((field) => {
       if (req.body[field] !== undefined) {
         payment[field] = req.body[field];
@@ -186,6 +207,7 @@ const update = async (req, res) => {
 
     return sendSuccess(res, 200, "Payment updated", payment);
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -228,13 +250,47 @@ const getStats = async (req, res) => {
       { $sort: { total: -1 } },
     ]);
 
+    // Safe aggregate: only group by valid dates
     const monthlyTrend = await Payment.aggregate([
       { $match: { status: "paid" } },
       {
+        $project: {
+          _id: 1,
+          amount: 1,
+          // Use paidAt if valid, otherwise createdAt, else null
+          effectiveDate: {
+            $cond: {
+              if: { $and: [{ $ne: ["$paidAt", null] }, { $ne: ["$paidAt", undefined] }] },
+              then: {
+                $cond: {
+                  if: { $eq: [{ $type: "$paidAt" }, "date"] },
+                  then: "$paidAt",
+                  else: {
+                    $cond: {
+                      if: { $and: [{ $ne: ["$createdAt", null] }, { $ne: ["$createdAt", undefined] }] },
+                      then: "$createdAt",
+                      else: null,
+                    },
+                  },
+                },
+              },
+              else: {
+                $cond: {
+                  if: { $and: [{ $ne: ["$createdAt", null] }, { $ne: ["$createdAt", undefined] }] },
+                  then: "$createdAt",
+                  else: null,
+                },
+              },
+            },
+          },
+        },
+      },
+      { $match: { effectiveDate: { $ne: null } } }, // exclude records with invalid dates
+      {
         $group: {
           _id: {
-            year: { $year: { $ifNull: ["$paidAt", "$createdAt"] } },
-            month: { $month: { $ifNull: ["$paidAt", "$createdAt"] } },
+            year: { $year: "$effectiveDate" },
+            month: { $month: "$effectiveDate" },
           },
           total: { $sum: "$amount" },
           count: { $sum: 1 },
@@ -253,6 +309,7 @@ const getStats = async (req, res) => {
       monthlyTrend,
     });
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -264,6 +321,45 @@ const remove = async (req, res) => {
     if (!payment) return sendError(res, 404, "Payment not found.");
     return sendSuccess(res, 200, "Payment deleted");
   } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
+    return sendError(res, 500, err.message);
+  }
+};
+
+// POST /api/payments/confirm  [admin] - mark a pending payment as paid immediately
+const confirmPayment = async (req, res) => {
+  try {
+    const { paymentId, reason } = req.body;
+
+    if (!paymentId) {
+      return sendError(res, 400, "paymentId is required.");
+    }
+
+    const payment = await Payment.findById(paymentId);
+    if (!payment) return sendError(res, 404, "Payment not found.");
+
+    if (payment.status === "paid") {
+      return sendError(res, 400, "Payment already marked as paid.");
+    }
+
+    payment.status = "paid";
+    payment.paidAt = new Date();
+    if (reason) payment.reason = reason;
+    await payment.save();
+
+    // Sync with appointment
+    if (payment.appointment) {
+      await Appointment.findByIdAndUpdate(payment.appointment, { isPaid: true });
+    }
+
+    await payment.populate([
+      { path: "patient", select: "name email" },
+      { path: "recordedBy", select: "name" },
+    ]);
+
+    return sendSuccess(res, 200, "Payment confirmed successfully", payment);
+  } catch (err) {
+    console.error("[PAYMENT GETALL] ERROR:", err.message, err.stack);
     return sendError(res, 500, err.message);
   }
 };
@@ -276,4 +372,5 @@ module.exports = {
   update,
   getStats,
   remove,
+  confirmPayment,
 };

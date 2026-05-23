@@ -9,6 +9,7 @@ const {
   update,
   getStats,
   remove,
+  confirmPayment,
 } = require("../controllers/paymentController");
 const { generateQR, confirmQRPayment } = require("../controllers/qrPaymentController");
 const { auth, authorize } = require("../middleware/auth");
@@ -32,6 +33,7 @@ const createSchema = {
       .allow(null),
     discount: Joi.number().min(0).default(0),
     tax: Joi.number().min(0).default(0),
+    reason: Joi.string().allow("", null),
     notes: Joi.string().allow("", null),
   }),
 };
@@ -47,6 +49,7 @@ const updateSchema = {
     amount: Joi.number().min(0).allow("", null),
     discount: Joi.number().min(0).allow("", null),
     tax: Joi.number().min(0).allow("", null),
+    reason: Joi.string().allow("", null),
     notes: Joi.string().allow("", null),
   }),
 };
@@ -63,10 +66,13 @@ router.delete("/:id", auth, authorize("admin"), remove);
 router.get("/me", auth, authorize("patient"), getMine);
 
 // ── QR Payment routes ──────────────────────────────────────────────────────────
-// POST /api/payments/qr/generate - Generate QR code for MBBank payment
-router.post("/qr/generate", auth, authorize("admin"), generateQR);
+// POST /api/payments/qr/generate - Generate QR code for MBBank payment (admin + doctor)
+router.post("/qr/generate", auth, authorize("admin", "doctor"), generateQR);
 
-// POST /api/payments/qr/confirm - Admin confirms QR transfer received
-router.post("/qr/confirm", auth, authorize("admin"), confirmQRPayment);
+// POST /api/payments/qr/confirm - Admin/doctor confirms QR transfer received
+router.post("/qr/confirm", auth, authorize("admin", "doctor"), confirmQRPayment);
+
+// POST /api/payments/confirm - Admin confirms a pending payment as paid
+router.post("/confirm", auth, authorize("admin"), confirmPayment);
 
 module.exports = router;

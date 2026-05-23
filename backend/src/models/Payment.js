@@ -14,7 +14,7 @@ const paymentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Appointment",
     },
-    invoiceNumber: { type: String, unique: true, required: true },
+    invoiceNumber: { type: String, unique: true },
     amount: { type: Number, required: true, min: 0 },
     method: {
       type: String,
@@ -37,6 +37,7 @@ const paymentSchema = new mongoose.Schema(
     ],
     discount: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
+    reason: { type: String, trim: true },
     notes: { type: String, trim: true },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -55,16 +56,17 @@ paymentSchema.index({ paidAt: 1 });
 // Auto-generate invoice number before save
 paymentSchema.pre("save", async function (next) {
   if (!this.invoiceNumber) {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    // Safe date boundaries using Date constructor (handles year rollover for December)
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd   = new Date(year, month, 1);
+    // Count only valid-dated records (skip any corrupted "Invalid Date" records)
     const count = await mongoose.model("Payment").countDocuments({
-      createdAt: {
-        $gte: new Date(`${year}-${month}-01`),
-        $lt: new Date(`${year}-${month + 1}-01`),
-      },
+      createdAt: { $gte: monthStart, $lt: monthEnd, $type: "date" },
     });
-    this.invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(4, "0")}`;
+    this.invoiceNumber = `INV-${year}${String(month).padStart(2, "0")}-${String(count + 1).padStart(4, "0")}`;
   }
   next();
 });

@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminSidebar from "../../components/layout/AdminSidebar";
-import Modal from "../../components/ui/Modal";
 import { patientApi, scoreApi } from "../../services/api";
-import type { User } from "../../types";
 
 interface Patient {
   _id: string;
@@ -49,7 +47,7 @@ export default function AdminScores() {
   const [search, setSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [, setLoadingPatients] = useState(true);
 
   useEffect(() => {
     loadData();
