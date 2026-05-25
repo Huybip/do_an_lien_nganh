@@ -33,10 +33,12 @@ export interface Appointment {
   status:
     | "pending"
     | "confirmed"
+    | "checked-in"
     | "completed"
     | "cancelled"
     | "approved"
-    | "rejected";
+    | "rejected"
+    | "no-show";
   approvalStatus?: "pending" | "approved" | "rejected";
   notes?: string;
   doctorNotes?: string;

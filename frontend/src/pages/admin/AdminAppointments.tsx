@@ -2,26 +2,13 @@ import { useState } from "react";
 import AdminSidebar from "../../components/layout/AdminSidebar";
 import Table from "../../components/ui/Table";
 import Modal from "../../components/ui/Modal";
-import { appointmentApi } from "../../services/api";
+import { appointmentApi, paymentApi } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
 import type { Appointment } from "../../types";
-
-interface QRData {
-  invoiceNumber: string;
-  amount: number;
-  qrDataUrl: string;
-  qrString: string;
-  addInfo: string;
-  paymentId: string;
-  bankId: string;
-  accountNo: string;
-  accountName: string;
-}
 
 interface CompleteResult {
   appointment: Appointment;
   payment: any;
-  qrData: QRData;
   message: string;
 }
 
@@ -61,14 +48,24 @@ export default function AdminAppointments() {
     }
   };
 
+  const handleCheckIn = async (id: string) => {
+    try {
+      await appointmentApi.update(id, { status: "checked-in" });
+      alert("Đã tiếp đón bệnh nhân thành công!");
+      refetch();
+    } catch (error) {
+      alert("Tiếp đón bệnh nhân thất bại.");
+    }
+  };
+
   const handleComplete = async (apt: Appointment) => {
-    if (!confirm(`Hoàn thành lịch hẹn của "${apt.patientName}"?\n\nHệ thống sẽ tự động tạo phiếu thu và mã QR thanh toán.`)) return;
+    if (!confirm(`Hoàn thành khám cho bệnh nhân "${apt.patientName}" và tự động tạo hóa đơn tiền mặt?`)) return;
     setCompletingId(apt.id);
     try {
       const res = await appointmentApi.complete(apt.id, {});
       const result = res.data?.data;
       setCompleteResult(result);
-      alert(`Hoan thanh lich hen "${apt.patientName}" thanh cong!\nMa QR thanh toan da duoc tao.`);
+      alert(`Hoàn thành khám cho bệnh nhân "${apt.patientName}" thành công!`);
       refetch();
     } catch (err: any) {
       alert(err.response?.data?.message || "Không thể hoàn thành lịch hẹn.");
@@ -77,24 +74,10 @@ export default function AdminAppointments() {
     }
   };
 
-  const handleConfirmPayment = async (paymentId: string) => {
-    setConfirmingId(paymentId);
-    try {
-      const { paymentApi: pApi } = await import("../../services/api");
-      await pApi.confirmQR(paymentId);
-      alert("Đã xác nhận thanh toán thành công!");
-      setCompleteResult(null);
-      refetch();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Xác nhận thất bại.");
-    } finally {
-      setConfirmingId(null);
-    }
-  };
-
   const statusColors: Record<string, string> = {
     pending: "bg-amber-50 text-amber-700 border-amber-200",
     confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "checked-in": "bg-violet-50 text-violet-700 border-violet-200",
     completed: "bg-sky-50 text-sky-700 border-sky-200",
     cancelled: "bg-red-50 text-red-700 border-red-200",
     "no-show": "bg-slate-100 text-slate-600 border-slate-200",
@@ -102,7 +85,8 @@ export default function AdminAppointments() {
 
   const statusLabels: Record<string, string> = {
     pending: "Chờ",
-    confirmed: "Xác nhận",
+    confirmed: "Đã duyệt",
+    "checked-in": "Chờ khám",
     completed: "Hoàn tất",
     cancelled: "Hủy",
     "no-show": "Vắng",
@@ -111,6 +95,7 @@ export default function AdminAppointments() {
   const statusBadgeColors: Record<string, string> = {
     pending: "bg-gradient-to-r from-amber-400 to-orange-400",
     confirmed: "bg-gradient-to-r from-emerald-400 to-teal-400",
+    "checked-in": "bg-gradient-to-r from-violet-400 to-purple-500",
     completed: "bg-gradient-to-r from-sky-400 to-blue-500",
     cancelled: "bg-gradient-to-r from-red-400 to-rose-500",
     "no-show": "bg-gradient-to-r from-slate-400 to-gray-500",
@@ -216,22 +201,23 @@ export default function AdminAppointments() {
       header: "THAO TÁC",
       render: (apt: Appointment) => (
         <div className="flex gap-1.5 flex-wrap">
-          {/* Hoan thanh button */}
-          {apt.status !== "completed" && apt.status !== "cancelled" && (
+          {/* Check-in button */}
+          {apt.status === "confirmed" && (
+            <button
+              onClick={() => handleCheckIn(apt.id)}
+              className="px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 font-semibold text-xs transition-all border border-sky-200"
+            >
+              Tiếp đón
+            </button>
+          )}
+          {/* Complete button */}
+          {apt.status === "checked-in" && (
             <button
               onClick={() => handleComplete(apt)}
               disabled={completingId === apt.id}
-              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:shadow-lg hover:shadow-emerald-200 font-medium text-xs transition-all disabled:opacity-50"
-              title="Hoan thanh kham va tao QR thanh toan"
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:shadow-lg hover:shadow-emerald-200 font-semibold text-xs transition-all disabled:opacity-50"
             >
-              {completingId === apt.id ? "..." : (
-                <span className="flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  Hoàn thành
-                </span>
-              )}
+              {completingId === apt.id ? "..." : "Hoàn thành"}
             </button>
           )}
           {/* Chi tiet */}
@@ -277,7 +263,7 @@ export default function AdminAppointments() {
     },
     {
       label: "Xác nhận",
-      value: appointments?.filter((a) => a.status === "confirmed").length || 0,
+      value: appointments?.filter((a) => a.status === "confirmed" || a.status === "checked-in").length || 0,
       color: "emerald",
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -299,8 +285,9 @@ export default function AdminAppointments() {
 
   const filterPills = [
     { key: "all", label: "Tất cả", count: appointments?.length || 0 },
-    { key: "pending", label: "Chờ", count: appointments?.filter((a) => a.status === "pending").length || 0 },
-    { key: "confirmed", label: "Xác nhận", count: appointments?.filter((a) => a.status === "confirmed").length || 0 },
+    { key: "pending", label: "Chờ duyệt", count: appointments?.filter((a) => a.status === "pending").length || 0 },
+    { key: "confirmed", label: "Đã duyệt", count: appointments?.filter((a) => a.status === "confirmed").length || 0 },
+    { key: "checked-in", label: "Chờ khám", count: appointments?.filter((a) => a.status === "checked-in").length || 0 },
     { key: "completed", label: "Hoàn tất", count: appointments?.filter((a) => a.status === "completed").length || 0 },
     { key: "cancelled", label: "Hủy", count: appointments?.filter((a) => a.status === "cancelled").length || 0 },
   ];
@@ -486,15 +473,26 @@ export default function AdminAppointments() {
               >
                 Đóng
               </button>
-              {selected.status !== "completed" && selected.status !== "cancelled" && (
+              {selected.status === "confirmed" && (
+                <button
+                  onClick={() => {
+                    handleCheckIn(selected.id);
+                    setShowModal(false);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+                >
+                  Tiếp đón
+                </button>
+              )}
+              {selected.status === "checked-in" && (
                 <button
                   onClick={() => {
                     handleComplete(selected);
                     setShowModal(false);
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-200 transition-all"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all"
                 >
-                  Hoàn thành + QR
+                  Hoàn thành khám
                 </button>
               )}
             </div>
@@ -502,57 +500,107 @@ export default function AdminAppointments() {
         )}
       </Modal>
 
-      {/* QR Payment Modal */}
-      {completeResult?.qrData && (
-        <QRPaymentResultModal
-          qrData={completeResult.qrData}
+      {/* Cash Checkout Result Modal */}
+      {completeResult?.payment && (
+        <CashCheckoutModal
+          payment={completeResult.payment}
           appointment={completeResult.appointment}
-          paymentId={completeResult.qrData.paymentId}
-          onConfirm={handleConfirmPayment}
-          confirmingId={confirmingId}
           onClose={() => { setCompleteResult(null); }}
+          onSuccess={() => { setCompleteResult(null); refetch(); }}
         />
       )}
     </div>
   );
 }
 
-// ── QR Payment Result Modal ──────────────────────────────────────────────────
-function QRPaymentResultModal({
-  qrData,
+// ── Cash Checkout Modal ──────────────────────────────────────────────────────
+function CashCheckoutModal({
+  payment,
   appointment,
-  paymentId,
-  onConfirm,
-  confirmingId,
   onClose,
+  onSuccess
 }: {
-  qrData: QRData;
-  appointment: Appointment;
-  paymentId: string;
-  onConfirm: (id: string) => void;
-  confirmingId: string | null;
+  payment: any;
+  appointment: any;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
-  const handlePrintQR = () => {
-    if (!qrData.qrDataUrl) return;
+  const [cashReceived, setCashReceived] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const amount = payment.amount || 0;
+  const received = Number(cashReceived);
+  const change = cashReceived && !isNaN(received) ? Math.max(0, received - amount) : null;
+  const isEnough = cashReceived && !isNaN(received) && received >= amount;
+
+  const handleConfirmCash = async () => {
+    if (!isEnough) return;
+    setLoading(true);
+    try {
+      await paymentApi.update(payment._id || payment.id, {
+        status: "paid",
+        notes: `[Thanh toan tien mat] Nhan: ${received.toLocaleString("vi-VN")} đ | Tra lai: ${change?.toLocaleString("vi-VN")} đ`,
+      });
+      alert(`Thanh toán tiền mặt thành công!\nSố tiền nhận: ${received.toLocaleString("vi-VN")} đ\nTiền thừa trả khách: ${change?.toLocaleString("vi-VN")} đ`);
+      onSuccess();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Thao tác thất bại.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrintReceipt = () => {
     const win = window.open("", "_blank");
     if (!win) return;
     win.document.write(`
-      <html><head><title>In QR Thanh Toan</title>
+      <html><head><title>Phiếu Thu Tiền Mặt</title>
       <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 40px; }
-        h2 { color: #0c4a6e; } p { font-size: 14px; color: #555; }
-        img { border: 4px solid #0ea5e9; border-radius: 12px; }
-        .info { margin-top: 16px; font-weight: bold; color: #059669; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px; color: #334155; }
+        .invoice-card { max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+        h2 { color: #0f172a; margin-bottom: 5px; font-weight: 800; }
+        .subtitle { color: #64748b; font-size: 14px; margin-bottom: 20px; }
+        .divider { border-top: 2px dashed #cbd5e1; margin: 20px 0; }
+        .item-row { display: flex; justify-content: space-between; font-size: 14px; margin: 10px 0; }
+        .total-row { display: flex; justify-content: space-between; font-weight: 800; font-size: 18px; color: #16a34a; margin-top: 15px; }
+        .footer-text { margin-top: 30px; font-size: 12px; color: #94a3b8; }
       </style></head>
       <body>
-        <h2>Phong Kham Nha Khoa VinaMec</h2>
-        <p>Ma hoa don: ${qrData.invoiceNumber}</p>
-        <p>Benh nhan: ${appointment.patientName}</p>
-        <img src="${qrData.qrDataUrl}" width="300" />
-        <p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p>
-        <p>STK: ${qrData.accountNo} - ${qrData.accountName}</p>
-        <p>Noi dung: ${qrData.addInfo}</p>
+        <div class="invoice-card">
+          <h2>PHÒNG KHÁM NHA KHOA VINAMEC</h2>
+          <div class="subtitle">Phiếu Thu Tiền Mặt (Bản In)</div>
+          <p style="text-align: left; font-size: 13px;">
+            <strong>Mã hóa đơn:</strong> ${payment.invoiceNumber}<br/>
+            <strong>Khách hàng:</strong> ${appointment.patientName}<br/>
+            <strong>Ngày lập:</strong> ${new Date().toLocaleDateString("vi-VN")}
+          </p>
+          <div class="divider"></div>
+          <div class="item-row">
+            <span>Dịch vụ điều trị:</span>
+            <strong>${appointment.serviceName || "Khám nha khoa"}</strong>
+          </div>
+          <div class="item-row">
+            <span>Đơn giá:</span>
+            <span>${amount.toLocaleString("vi-VN")} đ</span>
+          </div>
+          <div class="divider"></div>
+          <div class="total-row">
+            <span>TỔNG TIỀN:</span>
+            <span>${amount.toLocaleString("vi-VN")} đ</span>
+          </div>
+          ${isEnough ? `
+            <div class="divider"></div>
+            <div class="item-row" style="color: #64748b;">
+              <span>Khách đưa:</span>
+              <span>${received.toLocaleString("vi-VN")} đ</span>
+            </div>
+            <div class="item-row" style="color: #64748b;">
+              <span>Trả lại:</span>
+              <span>${change?.toLocaleString("vi-VN")} đ</span>
+            </div>
+          ` : ""}
+          <p class="footer-text">Cảm ơn quý khách đã tin tưởng dịch vụ của VinaMec!</p>
+        </div>
         <script>window.print();<\/script>
       </body></html>
     `);
@@ -562,133 +610,73 @@ function QRPaymentResultModal({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header - MBBank style */}
-        <div
-          className="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100"
-          style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center">
-              <span className="text-white font-black text-base">MB</span>
+        <div className="bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Thanh Toan QR</h2>
-              <p className="text-blue-200 text-xs">Phieu thu da duoc tao</p>
+              <h2 className="text-lg font-bold">Thanh Toán Tiền Mặt</h2>
+              <p className="text-emerald-100 text-xs">Mã hóa đơn: {payment.invoiceNumber}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light">X</button>
+          <button onClick={onClose} className="text-emerald-100 hover:text-white text-2xl font-light">✕</button>
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Success message */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
-              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="font-bold text-emerald-800">Đã hoàn thành khám!</p>
-            <p className="text-xs text-emerald-600 mt-1">
-              Phiếu thu <strong>{qrData.invoiceNumber}</strong> đã được tạo tự động.
+            <p className="font-bold text-emerald-800 text-sm">Đã Hoàn Thành Khám Bệnh!</p>
+            <p className="text-xs text-emerald-600 mt-1">Hồ sơ bệnh án và hóa đơn đã được ghi nhận.</p>
+          </div>
+
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 text-center text-white shadow-md">
+            <p className="text-xs text-emerald-100 font-bold uppercase tracking-wider">Số tiền cần thu</p>
+            <p className="text-3xl font-black mt-1">
+              {amount.toLocaleString("vi-VN")}
+              <span className="text-lg font-bold ml-1">VNĐ</span>
             </p>
           </div>
 
-          {/* Patient info */}
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
-              {appointment.patientName?.charAt(0).toUpperCase()}
-            </div>
+          {/* Checkout calculator */}
+          <div className="space-y-3">
             <div>
-              <p className="font-semibold text-slate-800 text-sm">{appointment.patientName}</p>
-              <p className="text-xs text-slate-400">Dịch vụ: {appointment.serviceName}</p>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Số tiền khách đưa (VNĐ)</label>
+              <input
+                type="number"
+                value={cashReceived}
+                onChange={(e) => setCashReceived(e.target.value)}
+                placeholder="Ví dụ: 200000"
+                className="w-full px-4 py-3 border-2 border-slate-200 focus:border-emerald-500 focus:outline-none rounded-xl text-lg font-bold text-slate-800 transition"
+              />
             </div>
-          </div>
 
-          {/* Amount - MBBank style */}
-          <div
-            className="rounded-xl p-4 text-center"
-            style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
-          >
-            <p className="text-blue-200 text-xs font-bold uppercase tracking-wider">So tien thanh toan</p>
-            <p className="text-3xl font-black text-white mt-1">
-              {Number(qrData.amount).toLocaleString("vi-VN")}
-              <span className="text-lg font-bold ml-1">VND</span>
-            </p>
-          </div>
-
-          {/* QR Code */}
-          <div className="bg-white rounded-xl p-4 text-center border border-slate-200 shadow-sm">
-            <img
-              src={qrData.qrDataUrl}
-              alt="QR Code"
-              className="w-56 h-56 mx-auto rounded-xl"
-            />
-            <p className="text-xs text-slate-400 mt-2">Quet ma QR bang ung dung ngan hang</p>
-          </div>
-
-          {/* Bank details - MBBank style */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div
-              className="px-4 py-2.5"
-              style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center">
-                  <span className="text-white font-black text-[9px]">MB</span>
-                </div>
-                <p className="text-white text-xs font-bold uppercase tracking-wider">MBBank - Thong tin tai khoan</p>
+            {isEnough && (
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center animate-fade-in">
+                <span className="text-sm font-semibold text-slate-500">Tiền thừa trả khách</span>
+                <span className="text-xl font-black text-emerald-600">{change?.toLocaleString("vi-VN")} đ</span>
               </div>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {[
-                { label: "So tai khoan", value: qrData.accountNo },
-                { label: "Ten tai khoan", value: qrData.accountName },
-                { label: "Noi dung CK", value: qrData.addInfo },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-xs font-medium text-slate-400">{item.label}</span>
-                  <span className="text-sm font-bold text-slate-700">{item.value}</span>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
 
-          {/* Action buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={handlePrintQR}
-              className="py-3 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition"
-            >
-              In QR
+            <button onClick={handlePrintReceipt} className="py-3 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+              In phiếu thu
             </button>
-            <button
-              onClick={onClose}
-              className="py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
-            >
-              Dong
+            <button onClick={onClose} className="py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+              Thanh toán sau
             </button>
           </div>
 
-          {/* Confirm payment button */}
           <button
-            onClick={() => onConfirm(paymentId)}
-            disabled={confirmingId === paymentId}
+            onClick={handleConfirmCash}
+            disabled={loading || !isEnough}
             className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-0.5 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
+            style={{ background: isEnough ? "linear-gradient(135deg, #10b981, #059669)" : "#cbd5e1", boxShadow: isEnough ? "0 4px 14px rgba(16,185,129,0.4)" : "none" }}
           >
-            {confirmingId === paymentId ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                Dang xu ly...
-              </span>
-            ) : "Da nhan duoc tien - Xac nhan thanh toan"}
+            {loading ? "Đang xử lý..." : "Xác nhận đã nhận tiền mặt"}
           </button>
-          <p className="text-center text-xs text-slate-400 -mt-2">
-            Sau khi benh nhan chuyen khoan xong, bam nut tren de xac nhan.
-          </p>
         </div>
       </div>
     </div>

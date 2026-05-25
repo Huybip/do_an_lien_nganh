@@ -54,25 +54,25 @@ const updateSchema = {
   }),
 };
 
-// Admin: full access
-router.get("/", auth, authorize("admin"), getAll);
-router.post("/", auth, authorize("admin"), validate(createSchema), create);
-router.get("/stats", auth, authorize("admin"), getStats);
-router.get("/:id", auth, authorize("admin"), getById);
-router.put("/:id", auth, authorize("admin"), validate(updateSchema), update);
-router.delete("/:id", auth, authorize("admin"), remove);
-
 // Patient: view own payments
 router.get("/me", auth, authorize("patient"), getMine);
 
+// Admin & Doctor: full/shared access
+router.get("/", auth, authorize("admin", "doctor"), getAll);
+router.post("/", auth, authorize("admin", "doctor"), validate(createSchema), create);
+router.get("/stats", auth, authorize("admin"), getStats);
+router.get("/:id", auth, authorize("admin", "doctor"), getById);
+router.put("/:id", auth, authorize("admin", "doctor"), validate(updateSchema), update);
+router.delete("/:id", auth, authorize("admin"), remove);
+
 // ── QR Payment routes ──────────────────────────────────────────────────────────
-// POST /api/payments/qr/generate - Generate QR code for MBBank payment (admin + doctor)
-router.post("/qr/generate", auth, authorize("admin", "doctor"), generateQR);
+// POST /api/payments/qr/generate - Generate QR code for MBBank payment (admin + doctor + patient)
+router.post("/qr/generate", auth, authorize("admin", "doctor", "patient"), generateQR);
 
 // POST /api/payments/qr/confirm - Admin/doctor confirms QR transfer received
 router.post("/qr/confirm", auth, authorize("admin", "doctor"), confirmQRPayment);
 
 // POST /api/payments/confirm - Admin confirms a pending payment as paid
-router.post("/confirm", auth, authorize("admin"), confirmPayment);
+router.post("/confirm", auth, authorize("admin", "doctor"), confirmPayment);
 
 module.exports = router;

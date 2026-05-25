@@ -51,6 +51,8 @@ export default function PatientPayments() {
   const [showQR, setShowQR] = useState(false);
   const [qrData, setQrData] = useState<any>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [showCash, setShowCash] = useState(false);
+  const [cashInvoice, setCashInvoice] = useState("");
 
   useEffect(() => {
     loadPayments();
@@ -86,6 +88,11 @@ export default function PatientPayments() {
     } catch {} finally {
       setQrLoading(false);
     }
+  };
+
+  const handleShowCash = (invoiceNumber: string) => {
+    setCashInvoice(invoiceNumber);
+    setShowCash(true);
   };
 
   return (
@@ -141,13 +148,21 @@ export default function PatientPayments() {
                           <p className="text-xs text-slate-400">Số tiền cần thanh toán</p>
                           <p className="text-2xl font-black text-amber-700">{p.amount.toLocaleString("vi-VN")} đ</p>
                         </div>
-                        <button
-                          onClick={() => handleShowQR(p.amount, p.invoiceNumber)}
-                          className="px-5 py-2.5 rounded-xl font-bold text-white text-sm transition-all hover:-translate-y-0.5"
-                          style={{ background: "linear-gradient(135deg, #059669, #10b981)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
-                        >
-                          Thanh toán QR
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleShowCash(p.invoiceNumber)}
+                            className="px-4 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 text-xs transition-all border border-slate-200 hover:-translate-y-0.5 active:scale-95"
+                          >
+                            Tiền mặt
+                          </button>
+                          <button
+                            onClick={() => handleShowQR(p.amount, p.invoiceNumber)}
+                            className="px-5 py-2.5 rounded-xl font-bold text-white text-xs transition-all hover:-translate-y-0.5 active:scale-95 shadow-md shadow-emerald-100 hover:shadow-emerald-200"
+                            style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}
+                          >
+                            Thanh toán QR
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -235,6 +250,37 @@ export default function PatientPayments() {
                   </div>
                 </>
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Modal */}
+      {showCash && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Thanh toán tiền mặt</h2>
+              <button onClick={() => { setShowCash(false); setCashInvoice(""); }} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <div className="p-6 space-y-4 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-2 text-3xl">
+                💵
+              </div>
+              <p className="text-sm text-slate-600">
+                Để thanh toán bằng tiền mặt, quý khách vui lòng đến trực tiếp quầy tiếp đón hoặc quầy thu ngân của phòng khám Nha khoa VinaMec.
+              </p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-left space-y-2">
+                <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider">Thông tin thanh toán:</p>
+                <p className="text-sm text-slate-700">Mã hóa đơn: <strong className="font-mono text-emerald-800 text-base">{cashInvoice}</strong></p>
+                <p className="text-xs text-slate-400">Vui lòng cung cấp mã hóa đơn trên cho nhân viên quầy để được hỗ trợ thực hiện giao dịch nhanh chóng.</p>
+              </div>
+              <button
+                onClick={() => { setShowCash(false); setCashInvoice(""); }}
+                className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:shadow-lg text-white font-bold rounded-xl transition text-sm"
+              >
+                Đã hiểu
+              </button>
             </div>
           </div>
         </div>

@@ -487,7 +487,7 @@ const complete = async (req, res) => {
         appointment: appointment._id,
         invoiceNumber,
         amount: fee,
-        method: "bank_transfer",
+        method: "cash",
         status: "pending",
         description: `Thanh toan kham ${appointment.serviceName || "dich vu"} ngay ${appointment.date}`,
         services: [
@@ -503,19 +503,8 @@ const complete = async (req, res) => {
         recordedByName: req.user.name,
       });
 
-      // ── Generate QR code ──────────────────────────────────────────────────────
-      const qr = buildPaymentQR(fee, invoiceNumber);
-      qrData = {
-        invoiceNumber,
-        amount: fee,
-        qrDataUrl: qr.qrDataUrl,
-        qrString: qr.qrString,
-        addInfo: qr.addInfo,
-        paymentId: payment._id,
-        bankId: BANK_NAME,
-        accountNo: ACCOUNT_NO,
-        accountName: ACCOUNT_NAME,
-      };
+      // Cash payment doesn't generate QR codes
+      qrData = null;
     }
 
     await appointment.populate([
