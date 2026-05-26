@@ -637,6 +637,171 @@ function CreatePaymentModal({ open, onClose, onCreated }: { open: boolean; onClo
   );
 }
 
+const handlePrintInvoice = (pObj: Payment) => {
+  const win = window.open("", "_blank");
+  if (!win) return;
+  
+  const subtotal = (pObj.services || []).reduce((sum, s) => sum + s.price, 0);
+  const servicesList = (pObj.services || []).map((s, idx) => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${idx + 1}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${s.name}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${s.price.toLocaleString("vi-VN")} đ</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${s.price.toLocaleString("vi-VN")} đ</td>
+    </tr>
+  `).join("");
+
+  const receiptHtml = `
+    <html>
+      <head>
+        <title>Hóa đơn thanh toán - ${pObj.invoiceNumber}</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 20px; -webkit-print-color-adjust: exact; }
+            .no-print { display: none; }
+          }
+          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; max-width: 800px; margin: 0 auto; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #003A70; padding-bottom: 20px; margin-bottom: 30px; }
+          .clinic-info h1 { color: #003A70; margin: 0 0 5px 0; font-size: 24px; font-weight: 800; text-transform: uppercase; }
+          .clinic-info p { margin: 0; font-size: 13px; color: #64748b; }
+          .invoice-title { text-align: center; margin-bottom: 30px; }
+          .invoice-title h2 { color: #0f172a; margin: 0 0 5px 0; font-size: 28px; font-weight: 900; letter-spacing: 0.5px; }
+          .invoice-title p { margin: 0; font-size: 14px; font-family: monospace; font-weight: bold; color: #0ea5e9; }
+          .info-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+          .info-card { background-color: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #f1f5f9; }
+          .info-card h3 { margin: 0 0 8px 0; font-size: 12px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+          .info-card p { margin: 0 0 4px 0; font-size: 14px; color: #334155; }
+          .info-card p strong { color: #0f172a; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th { background-color: #003A70; color: white; padding: 12px 10px; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+          .totals-table { width: 320px; margin-left: auto; border: none; margin-bottom: 40px; }
+          .totals-table td { padding: 8px 0; font-size: 14px; color: #475569; }
+          .totals-table tr.grand-total td { border-top: 2px solid #e2e8f0; padding-top: 12px; font-size: 18px; font-weight: 800; color: #059669; }
+          .footer-notes { border-top: 1px dashed #e2e8f0; padding-top: 20px; font-size: 12px; color: #64748b; margin-bottom: 40px; }
+          .signatures { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; text-align: center; margin-top: 50px; page-break-inside: avoid; }
+          .signature-col p { margin: 0; font-size: 14px; }
+          .signature-col .title { font-weight: bold; color: #334155; }
+          .signature-col .space { height: 80px; }
+          .signature-col .name { font-weight: bold; color: #0f172a; border-top: 1px solid #cbd5e1; display: inline-block; padding-top: 5px; min-width: 150px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="clinic-info">
+            <h1>Nha Khoa VinaMec</h1>
+            <p>Địa chỉ: 123 Đường Nguyễn Trãi, Quận Thanh Xuân, Hà Nội</p>
+            <p>Hotline: 0912 345 678 | Website: vinamecdental.vn</p>
+          </div>
+          <div style="text-align: right; font-size: 13px; color: #64748b;">
+            <p style="margin: 0 0 5px 0;">Ngày tạo: <strong>${new Date(pObj.createdAt).toLocaleDateString("vi-VN")}</strong></p>
+            <p style="margin: 0;">Thu ngân: <strong>${pObj.recordedByName || "Hệ thống"}</strong></p>
+          </div>
+        </div>
+
+        <div class="invoice-title">
+          <h2>HÓA ĐƠN THANH TOÁN</h2>
+          <p>SỐ PHIẾU: ${pObj.invoiceNumber}</p>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <h3>Thông tin khách hàng</h3>
+            <p>Họ tên: <strong>${pObj.patientName}</strong></p>
+            <p>Email: ${pObj.patient?.email || "—"}</p>
+            <p>SĐT: ${(pObj.patient as any)?.phone || "—"}</p>
+          </div>
+          <div class="info-card">
+            <h3>Thông tin thanh toán</h3>
+            <p>Phương thức: <strong>${methodLabels[pObj.method] || pObj.method}</strong></p>
+            <p>Trạng thái: <strong style="color: #059669;">Đã thanh toán</strong></p>
+            <p>Ngày thanh toán: <strong>${pObj.paidAt ? new Date(pObj.paidAt).toLocaleDateString("vi-VN") : new Date().toLocaleDateString("vi-VN")}</strong></p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px; border-top-left-radius: 8px;">STT</th>
+              <th style="text-align: left;">Dịch vụ</th>
+              <th style="width: 150px; text-align: right;">Đơn giá</th>
+              <th style="width: 150px; text-align: right; border-top-right-radius: 8px;">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${servicesList || `
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">1</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${pObj.reason || "Khám nha khoa tổng quát"}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${subtotal.toLocaleString("vi-VN")} đ</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${subtotal.toLocaleString("vi-VN")} đ</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+
+        <table class="totals-table">
+          <tr>
+            <td>Cộng tiền dịch vụ:</td>
+            <td style="text-align: right; font-weight: 600;">${(subtotal || pObj.amount).toLocaleString("vi-VN")} đ</td>
+          </tr>
+          ${pObj.discount > 0 ? `
+            <tr>
+              <td style="color: #b91c1c;">Giảm giá:</td>
+              <td style="text-align: right; font-weight: 600; color: #b91c1c;">-${pObj.discount.toLocaleString("vi-VN")} đ</td>
+            </tr>
+          ` : ""}
+          ${pObj.tax > 0 ? `
+            <tr>
+              <td>Thuế VAT:</td>
+              <td style="text-align: right; font-weight: 600;">+${pObj.tax.toLocaleString("vi-VN")} đ</td>
+            </tr>
+          ` : ""}
+          <tr class="grand-total">
+            <td>Tổng tiền thu:</td>
+            <td style="text-align: right;">${pObj.amount.toLocaleString("vi-VN")} đ</td>
+          </tr>
+        </table>
+
+        ${pObj.notes || pObj.description ? `
+          <div class="footer-notes">
+            <strong style="color: #334155;">Ghi chú / Mô tả:</strong>
+            <p style="margin: 5px 0 0 0;">${pObj.notes || pObj.description}</p>
+          </div>
+        ` : ""}
+
+        <div style="text-align: center; font-size: 14px; font-weight: bold; color: #003A70; margin-bottom: 30px;">
+          Cảm ơn Quý khách đã tin tưởng dịch vụ tại Nha khoa VinaMec!
+        </div>
+
+        <div class="signatures">
+          <div class="signature-col">
+            <p class="title">Khách hàng</p>
+            <p style="font-size: 11px; color: #94a3b8; font-style: italic;">(Ký và ghi rõ họ tên)</p>
+            <div class="space"></div>
+            <p class="name">${pObj.patientName}</p>
+          </div>
+          <div class="signature-col">
+            <p class="title">Người lập phiếu</p>
+            <p style="font-size: 11px; color: #94a3b8; font-style: italic;">(Ký và ghi rõ họ tên)</p>
+            <div class="space"></div>
+            <p class="name">${pObj.recordedByName || "Thu ngân"}</p>
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          }
+        <\/script>
+      </body>
+    </html>
+  `;
+  
+  win.document.write(receiptHtml);
+  win.document.close();
+};
+
 function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
   payment: Payment; open: boolean; onClose: () => void; onUpdated: () => void;
 }) {
@@ -645,6 +810,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
   const [qrData, setQrData] = useState<any>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingTrans, setCheckingTrans] = useState(false);
 
   const change = cashReceived && !isNaN(Number(cashReceived))
     ? Math.max(0, Number(cashReceived) - payment.amount)
@@ -655,6 +821,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     setCashReceived("");
     setQrData(null);
     setQrLoading(false);
+    setCheckingTrans(false);
   }, [payment]);
 
   // Generate QR for bank_transfer pending payments
@@ -668,37 +835,79 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     }
   }, [open]);
 
+  // Poll in background
+  useEffect(() => {
+    let timer: any;
+    if (open && status === "pending") {
+      timer = setInterval(async () => {
+        try {
+          const res = await paymentApi.getById(payment._id);
+          const current = res.data?.data || res.data;
+          if (current && current.status === "paid") {
+            setStatus("paid");
+            onUpdated();
+          }
+        } catch {}
+      }, 3000);
+    }
+    return () => clearInterval(timer);
+  }, [open, status, payment._id]);
+
   const handleConfirmPayment = async () => {
     setLoading(true);
     try {
       await paymentApi.update(payment._id, { status: "paid" });
-      alert("Xac nhan thanh toan thanh cong!");
+      alert("Xác nhận thanh toán thành công!");
+      setStatus("paid");
       onUpdated();
+      if (window.confirm("Bạn có muốn in hoá đơn thanh toán không?")) {
+        handlePrintInvoice({ ...payment, status: "paid", paidAt: new Date().toISOString() });
+      }
       onClose();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Cap nhat that bai.");
+      alert(err.response?.data?.message || "Cập nhật thất bại.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVerifyQRPayment = async () => {
+    setCheckingTrans(true);
+    setTimeout(async () => {
+      try {
+        await paymentApi.confirmQR(payment._id);
+        setStatus("paid");
+        onUpdated();
+      } catch (err: any) {
+        alert(err.response?.data?.message || "Chưa nhận được giao dịch chuyển khoản VietQR khớp với mã hóa đơn này.");
+      } finally {
+        setCheckingTrans(false);
+      }
+    }, 1500);
+  };
+
   const handleCashPayment = async () => {
     const received = Number(cashReceived);
     if (!cashReceived || isNaN(received) || received < payment.amount) {
-      alert("So tien nhan phai lon hon hoac bang so tien can thanh toan!");
+      alert("Số tiền nhận phải lớn hơn hoặc bằng số tiền cần thanh toán!");
       return;
     }
     setLoading(true);
+    const updatedNotes = (payment.notes || "") + `\n[Tiền mặt] Nhận: ${received.toLocaleString("vi-VN")} đ | Trả lại: ${change?.toLocaleString("vi-VN")} đ`;
     try {
       await paymentApi.update(payment._id, {
         status: "paid",
-        notes: (payment.notes || "") + `\n[Tien mat] Nhan: ${received.toLocaleString("vi-VN")} VND | Tra lai: ${change?.toLocaleString("vi-VN")} VND`,
+        notes: updatedNotes,
       });
-      alert(`Thanh toan thanh cong!\nTien nhan: ${received.toLocaleString("vi-VN")} VND\nTien thua tra lai: ${change?.toLocaleString("vi-VN")} VND`);
+      alert(`Thanh toán thành công!\nTiền nhận: ${received.toLocaleString("vi-VN")} đ\nTiền thừa trả lại: ${change?.toLocaleString("vi-VN")} đ`);
+      setStatus("paid");
       onUpdated();
+      if (window.confirm("Bạn có muốn in hoá đơn thanh toán không?")) {
+        handlePrintInvoice({ ...payment, status: "paid", notes: updatedNotes, paidAt: new Date().toISOString() });
+      }
       onClose();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Thanh toan that bai.");
+      alert(err.response?.data?.message || "Thanh toán thất bại.");
     } finally {
       setLoading(false);
     }
@@ -708,10 +917,14 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     setLoading(true);
     try {
       await paymentApi.update(payment._id, { status });
+      alert("Cập nhật trạng thái thành công!");
       onUpdated();
+      if (status === "paid" && window.confirm("Bạn có muốn in hoá đơn thanh toán không?")) {
+        handlePrintInvoice({ ...payment, status: "paid", paidAt: new Date().toISOString() });
+      }
       onClose();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Cap nhat that bai.");
+      alert(err.response?.data?.message || "Cập nhật thất bại.");
     } finally {
       setLoading(false);
     }
@@ -721,9 +934,11 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     if (!qrData?.qrDataUrl) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${payment.invoiceNumber}</p><p>Benh nhan: ${payment.patientName}</p><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p><p>STK: 280605666888 - Nguyen Thai Son</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
+    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${payment.invoiceNumber}</p><p>Benh nhan: ${payment.patientName}</p><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p><p>STK: ${qrData.accountNo} - ${qrData.accountName} (${qrData.bankId})</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
     win.document.close();
   };
+
+
 
   if (!open) return null;
 
@@ -802,25 +1017,34 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
                 {methodLabels[payment.method] || payment.method}
               </p>
             </div>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${statusConfig[payment.status]?.bg} ${statusConfig[payment.status]?.text}`}>
-              {statusConfig[payment.status]?.label}
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${statusConfig[status]?.bg} ${statusConfig[status]?.text}`}>
+              {statusConfig[status]?.label}
             </span>
           </div>
 
           {/* ALREADY PAID — no action needed */}
-          {payment.status === "paid" ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
-                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+          {status === "paid" ? (
+            <div className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="font-bold text-emerald-800">Đã thanh toán!</p>
+                <p className="text-xs text-emerald-600 mt-1">
+                  Ngày: {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("vi-VN") : new Date().toLocaleDateString("vi-VN")}
+                </p>
               </div>
-              <p className="font-bold text-emerald-800">Da thanh toan!</p>
-              <p className="text-xs text-emerald-600 mt-1">
-                Ngay: {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("vi-VN") : "—"}
-              </p>
+              <button
+                onClick={() => handlePrintInvoice(payment)}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:-translate-y-0.5"
+                style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)", boxShadow: "0 4px 14px rgba(14,165,233,0.3)" }}
+              >
+                🖨️ In hóa đơn thanh toán
+              </button>
             </div>
-          ) : payment.status === "cancelled" ? (
+          ) : status === "cancelled" ? (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
               <p className="font-bold text-red-700">Da huy phieu thu</p>
             </div>
@@ -875,30 +1099,32 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
                   <div className="bg-white border border-slate-200 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #003A70, #0055A4)" }}>
-                        <span className="text-white font-black text-sm">MB</span>
+                        <span className="text-white font-black text-sm">🏦</span>
                       </div>
-                      <p className="font-bold text-slate-800 text-sm">Thanh toan QR MBBank</p>
+                      <p className="font-bold text-slate-800 text-sm">Thanh toán QR chuyển khoản VietQR</p>
                     </div>
 
                     {qrLoading ? (
-                      <div className="text-center py-6 text-slate-500 text-sm">Dang tao ma QR...</div>
+                      <div className="text-center py-6 text-slate-500 text-sm">Đang tạo mã QR...</div>
                     ) : qrData ? (
                       <div className="space-y-3">
                         {/* QR Code */}
-                        <div className="bg-white rounded-xl p-3 text-center border border-slate-200">
-                          <img src={qrData.qrDataUrl} alt="QR" className="w-48 h-48 mx-auto rounded-xl" />
-                          <p className="text-xs text-slate-400 mt-2">Quet ma QR bang ung dung ngan hang</p>
+                        <div className="bg-white rounded-xl p-3 text-center border border-slate-200 relative">
+                          <img src={qrData.qrDataUrl} alt="QR" className="w-48 h-48 mx-auto rounded-xl animate-scale-in" />
+                          <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none rounded-xl mx-auto w-48 h-48" />
+                          <p className="text-xs text-slate-400 mt-2">Quét mã QR bằng ứng dụng ngân hàng</p>
                         </div>
 
                         {/* Bank details */}
                         <div className="bg-slate-50 rounded-xl overflow-hidden">
                           <div className="px-4 py-2.5" style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}>
-                            <p className="text-white text-xs font-bold uppercase">Thong tin tai khoan</p>
+                            <p className="text-white text-xs font-bold uppercase">Thông tin tài khoản</p>
                           </div>
                           {[
-                            { label: "So tai khoan", value: "280605666888" },
-                            { label: "Ten tai khoan", value: "Nguyen Thai Son" },
-                            { label: "Noi dung CK", value: qrData.addInfo },
+                            { label: "Ngân hàng", value: qrData.bankId || "BIDV" },
+                            { label: "Số tài khoản", value: qrData.accountNo || "1231270139" },
+                            { label: "Tên tài khoản", value: qrData.accountName || "TRAN QUOC HUY" },
+                            { label: "Nội dung CK", value: qrData.addInfo },
                           ].map((item) => (
                             <div key={item.label} className="flex justify-between px-4 py-2.5 border-b border-slate-100 last:border-0">
                               <span className="text-xs text-slate-400">{item.label}</span>
@@ -907,22 +1133,47 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <button onClick={handlePrintQR} className="py-2.5 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition">
-                            In QR
-                          </button>
+                        {/* Realtime Status Bar */}
+                        <div className="flex items-center justify-center gap-2 bg-slate-50 rounded-xl py-2 px-3 border border-slate-100 text-xs text-slate-500">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 status-dot-pulse" />
+                          <span>Đang chờ giao dịch... Tự động nhận diện (3s)</span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={handlePrintQR} className="py-2.5 rounded-xl font-semibold text-xs border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                              🖨️ In QR
+                            </button>
+                            <button
+                              onClick={handleVerifyQRPayment}
+                              disabled={checkingTrans || loading}
+                              className="py-2.5 rounded-xl font-bold text-xs text-white transition hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)" }}
+                            >
+                              {checkingTrans ? (
+                                <>
+                                  <svg className="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                  </svg>
+                                  Đang quét...
+                                </>
+                              ) : (
+                                <>🔍 Kiểm tra tự động</>
+                              )}
+                            </button>
+                          </div>
                           <button
                             onClick={handleConfirmPayment}
-                            disabled={loading}
-                            className="py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-0.5 disabled:opacity-50"
-                            style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
+                            disabled={loading || checkingTrans}
+                            className="w-full py-2.5 rounded-xl font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition disabled:opacity-50"
                           >
-                            {loading ? "Dang xu ly..." : "Da nhan duoc tien"}
+                            {loading ? "Đang xác nhận..." : "✓ Xác nhận thủ công (Đã nhận tiền)"}
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-6 text-slate-500 text-sm">Khong the tao ma QR.</div>
+                      <div className="text-center py-6 text-slate-500 text-sm">Không thể tạo mã QR.</div>
                     )}
                   </div>
                 </div>
@@ -994,7 +1245,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
 function QRPaymentModal({ open, onClose, onSuccess }: {
   open: boolean; onClose: () => void; onSuccess: () => void;
 }) {
-  const [step, setStep] = useState<"patient" | "receipt" | "qr">("patient");
+  const [step, setStep] = useState<"patient" | "receipt" | "success">("patient");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1011,6 +1262,7 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [loadingQR, setLoadingQR] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [checkingTrans, setCheckingTrans] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -1036,8 +1288,28 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
       setCreatedPaymentId(null);
       setCreatedPayment(null);
       setQrData(null);
+      setCheckingTrans(false);
     }
   }, [open]);
+
+  // Background polling for payment status
+  useEffect(() => {
+    let timer: any;
+    if (open && step === "receipt" && createdPaymentId) {
+      timer = setInterval(async () => {
+        try {
+          const res = await paymentApi.getById(createdPaymentId);
+          const current = res.data?.data || res.data;
+          if (current && current.status === "paid") {
+            setCreatedPayment(current);
+            setStep("success");
+            onSuccess();
+          }
+        } catch {}
+      }, 3000);
+    }
+    return () => clearInterval(timer);
+  }, [open, step, createdPaymentId]);
 
   const loadAppointments = async (patientId: string) => {
     setLoadingAppointments(true);
@@ -1095,13 +1367,13 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
         amount: total,
         method: "bank_transfer",
         status: "pending",
-        description: description || `Thanh toán QR MBBank`,
+        description: description || `Thanh toán VietQR`,
         services: selectedAppointment
           ? [{ name: selectedAppointment.serviceName, price: selectedAppointment.fee }, ...services]
           : services,
         discount: 0,
         tax: 0,
-        notes: "Phiếu thu QR MBBank",
+        notes: "Phiếu thu VietQR",
         reason: reason.trim(),
       });
       const newPayment = paymentRes.data?.data;
@@ -1136,9 +1408,11 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
     setConfirmLoading(true);
     try {
       await paymentApi.confirmPayment(createdPaymentId, reason);
-      alert("Xác nhận thanh toán thành công! Phiếu thu đã được cập nhật.");
+      const res = await paymentApi.getById(createdPaymentId);
+      const current = res.data?.data || res.data;
+      setCreatedPayment(current || createdPayment);
+      setStep("success");
       onSuccess();
-      onClose();
     } catch (err: any) {
       alert(err.response?.data?.message || "Xác nhận thất bại.");
     } finally {
@@ -1146,11 +1420,29 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
     }
   };
 
+  const handleVerifyQRPayment = async () => {
+    if (!createdPaymentId) return;
+    setCheckingTrans(true);
+    setTimeout(async () => {
+      try {
+        const confirmRes = await paymentApi.confirmQR(createdPaymentId);
+        const current = confirmRes.data?.data || confirmRes.data;
+        setCreatedPayment(current || createdPayment);
+        setStep("success");
+        onSuccess();
+      } catch (err: any) {
+        alert(err.response?.data?.message || "Chưa nhận được giao dịch chuyển khoản VietQR khớp với mã hóa đơn.");
+      } finally {
+        setCheckingTrans(false);
+      }
+    }, 1500);
+  };
+
   const handlePrintQR = () => {
     if (!qrData?.qrDataUrl || !createdPayment) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}.receipt{border:1px solid #ddd;padding:20px;max-width:400px;margin:0 auto;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${createdPayment.invoiceNumber}</p><p>Benh nhan: ${selectedPatient?.name}</p><p>Lí do: ${reason}</p><hr/><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${total.toLocaleString("vi-VN")} VND</p><p>STK: 280605666888 - Nguyen Thai Son</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
+    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}.receipt{border:1px solid #ddd;padding:20px;max-width:400px;margin:0 auto;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${createdPayment.invoiceNumber}</p><p>Benh nhan: ${selectedPatient?.name}</p><p>Lí do: ${reason}</p><hr/><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${total.toLocaleString("vi-VN")} VND</p><p>STK: ${qrData.accountNo} - ${qrData.accountName} (${qrData.bankId})</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
     win.document.close();
   };
 
@@ -1158,24 +1450,24 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
         {/* Header */}
         <div
-          className="sticky top-0 px-6 py-4 border-b border-slate-200 flex items-center justify-between"
+          className="sticky top-0 px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10"
           style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center">
-              <span className="text-white font-black text-base">MB</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center text-lg">
+              🏦
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Tạo phiếu thu & QR MBBank</h2>
+              <h2 className="text-xl font-bold text-white">Tạo phiếu thu & VietQR</h2>
               <p className="text-blue-200 text-xs">
-                {step === "patient" ? "Bước 1: Chọn bệnh nhân & dịch vụ" : step === "receipt" ? "Bước 2: Xác nhận thanh toán" : "Quét mã QR"}
+                {step === "patient" ? "Bước 1: Chọn bệnh nhân & dịch vụ" : step === "receipt" ? "Bước 2: Quét mã VietQR" : "Thành công"}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light">X</button>
+          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light">✕</button>
         </div>
 
         <div className="p-6 space-y-5">
@@ -1187,11 +1479,11 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                 className="rounded-xl p-4 text-white text-center"
                 style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
               >
-                <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-white font-black text-base">MB</span>
+                <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center mx-auto mb-2 text-lg">
+                  🏦
                 </div>
-                <p className="font-bold text-sm">MBBank VietQR</p>
-                <p className="text-blue-200 text-xs mt-1">STK: 280605666888 - Nguyen Thai Son</p>
+                <p className="font-bold text-sm">Chuyển khoản VietQR</p>
+                <p className="text-blue-200 text-xs mt-1">Hệ thống VietQR tự động đồng bộ hóa đơn</p>
               </div>
 
               {/* Select Patient */}
@@ -1358,7 +1650,7 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                     Đang tạo phiếu thu & mã QR...
                   </span>
                 ) : (
-                  "Tạo phiếu thu & mã QR MBBank"
+                  "Tạo phiếu thu & mã QR VietQR"
                 )}
               </button>
             </>
@@ -1374,8 +1666,8 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                   style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center">
-                      <span className="text-white font-black text-base">MB</span>
+                    <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center text-lg">
+                      🏦
                     </div>
                     <div>
                       <p className="font-bold text-sm">PHIẾU THU</p>
@@ -1442,10 +1734,10 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                   {/* Payment method */}
                   <div className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-amber-400 flex items-center justify-center">
-                        <span className="text-white font-black text-[10px]">MB</span>
+                      <div className="w-6 h-6 rounded bg-amber-400 flex items-center justify-center text-xs">
+                        🏦
                       </div>
-                      <span className="text-sm font-semibold text-slate-700">QR MBBank</span>
+                      <span className="text-sm font-semibold text-slate-700">QR Chuyển khoản VietQR</span>
                     </div>
                     <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Chờ thanh toán</span>
                   </div>
@@ -1455,9 +1747,10 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
               {/* QR Code */}
               {qrData && (
                 <>
-                  <div className="bg-slate-50 rounded-xl p-6 text-center border border-slate-100">
-                    <img src={qrData.qrDataUrl} alt="QR Code" className="w-56 h-56 mx-auto rounded-2xl" />
-                    <p className="text-xs text-slate-400 mt-3">Quét mã bằng ứng dụng ngân hàng MBBank</p>
+                  <div className="bg-slate-50 rounded-xl p-6 text-center border border-slate-100 relative">
+                    <img src={qrData.qrDataUrl} alt="QR Code" className="w-56 h-56 mx-auto rounded-2xl animate-scale-in" />
+                    <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none rounded-xl mx-auto w-56 h-56" />
+                    <p className="text-xs text-slate-400 mt-3">Quét mã bằng ứng dụng ngân hàng của bạn</p>
                   </div>
 
                   {/* Bank info */}
@@ -1467,15 +1760,16 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                       style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center">
-                          <span className="text-white font-black text-[9px]">MB</span>
+                        <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center text-xs">
+                          🏦
                         </div>
-                        <p className="text-white text-xs font-bold uppercase tracking-wider">MBBank - Thông tin tài khoản</p>
+                        <p className="text-white text-xs font-bold uppercase tracking-wider">Thông tin tài khoản - {qrData.bankId || "Ngân hàng"}</p>
                       </div>
                     </div>
                     {[
-                      { label: "Số tài khoản", value: "280605666888" },
-                      { label: "Tên tài khoản", value: "Nguyen Thai Son" },
+                      { label: "Ngân hàng", value: qrData.bankId || "BIDV" },
+                      { label: "Số tài khoản", value: qrData.accountNo || "1231270139" },
+                      { label: "Tên tài khoản", value: qrData.accountName || "TRAN QUOC HUY" },
                       { label: "Nội dung CK", value: qrData.addInfo },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-0">
@@ -1489,7 +1783,7 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                   <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
                     <p className="text-sm font-bold text-blue-700 mb-2">Hướng dẫn thanh toán:</p>
                     <ol className="text-xs text-slate-600 space-y-1 list-decimal list-inside">
-                      <li>Mở ứng dụng <strong>MBBank</strong> hoặc app <strong>VietQR</strong></li>
+                      <li>Mở ứng dụng Ngân hàng di động bất kỳ</li>
                       <li>Chọn tính năng <strong>Quét mã QR</strong></li>
                       <li>Quét mã QR bên trên</li>
                       <li>Nhập đúng số tiền: <strong>{total.toLocaleString("vi-VN")} VND</strong></li>
@@ -1499,51 +1793,97 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                 </>
               )}
 
-              {/* Action buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setStep("patient")}
-                  className="py-3 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition"
-                >
-                  ← Tạo lại
-                </button>
-                <button
-                  onClick={handlePrintQR}
-                  className="py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
-                >
-                  In QR
-                </button>
+              {/* Realtime Status Bar */}
+              <div className="flex items-center justify-center gap-2 bg-slate-50 rounded-xl py-2.5 px-3 border border-slate-100 text-xs text-slate-500">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 status-dot-pulse" />
+                <span>Đang chờ chuyển khoản... Tự động nhận diện (3s)</span>
               </div>
 
-              {/* Confirm Payment */}
-              {createdPaymentId && (
-                <div className="space-y-3">
+              {/* Action buttons */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={handleConfirmPayment}
-                    disabled={confirmLoading}
-                    className="w-full py-4 rounded-xl font-bold text-sm text-white transition-all hover:-translate-y-0.5 disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
+                    onClick={() => setStep("patient")}
+                    className="py-2.5 rounded-xl font-semibold text-xs border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition"
                   >
-                    {confirmLoading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
-                        Đang xác nhận...
-                      </span>
-                    ) : (
-                      <>
-                        ✓ Đã nhận được tiền — Xác nhận thanh toán thành công
-                      </>
-                    )}
+                    ← Quay lại
                   </button>
-                  <p className="text-center text-xs text-slate-400">
-                    Sau khi bệnh nhân chuyển khoản xong, bấm nút trên để xác nhận thanh toán thành công và cập nhật vào quản lý thanh toán.
-                  </p>
+                  <button
+                    onClick={handlePrintQR}
+                    className="py-2.5 rounded-xl font-semibold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                  >
+                    🖨️ In QR
+                  </button>
                 </div>
-              )}
+
+                <button
+                  onClick={handleVerifyQRPayment}
+                  disabled={checkingTrans || confirmLoading}
+                  className="w-full py-3 rounded-xl font-bold text-xs text-white transition hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-sky-100"
+                  style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)" }}
+                >
+                  {checkingTrans ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                      Đang tra soát tài khoản ngân hàng...
+                    </>
+                  ) : (
+                    <>🔍 Kiểm tra giao dịch tự động</>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleConfirmPayment}
+                  disabled={confirmLoading || checkingTrans}
+                  className="w-full py-2.5 rounded-xl font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition disabled:opacity-50"
+                >
+                  {confirmLoading ? "Đang xác nhận..." : "✓ Xác nhận thủ công (Đã nhận tiền)"}
+                </button>
+              </div>
             </>
+          )}
+
+          {/* ── Step 3: Success Screen ── */}
+          {step === "success" && createdPayment && (
+            <div className="space-y-5 text-center py-4 animate-bounce-in">
+              <div className="w-20 h-20 rounded-full bg-emerald-100 border-4 border-emerald-500 flex items-center justify-center mx-auto shadow-md">
+                <svg className="w-10 h-10 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-emerald-700">Thanh toán thành công!</h3>
+                <p className="text-sm text-slate-500">Hệ thống đã nhận đủ số tiền thanh toán.</p>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-left text-xs space-y-1.5 animate-scale-in">
+                <p className="text-slate-500 font-bold uppercase tracking-wider mb-2">Thông tin hóa đơn</p>
+                <p className="text-slate-600">Mã hóa đơn: <strong className="font-mono text-slate-800 text-sm">{createdPayment.invoiceNumber}</strong></p>
+                <p className="text-slate-600">Khách hàng: <strong className="text-slate-800">{selectedPatient?.name}</strong></p>
+                <p className="text-slate-600">Số tiền: <strong className="text-slate-800">{total.toLocaleString("vi-VN")} đ</strong></p>
+                <p className="text-slate-600">Phương thức: <strong className="text-slate-800">Chuyển khoản VietQR</strong></p>
+                <p className="text-slate-600">Người lập phiếu: <strong className="text-slate-800">{createdPayment.recordedByName || "Hệ thống"}</strong></p>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => handlePrintInvoice(createdPayment)}
+                  className="w-full py-3 rounded-xl font-bold text-white text-sm transition hover:-translate-y-0.5 shadow-md flex items-center justify-center gap-1.5"
+                  style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)" }}
+                >
+                  🖨️ In hóa đơn thanh toán
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-full py-3 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 text-sm transition"
+                >
+                  Đóng cửa sổ
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

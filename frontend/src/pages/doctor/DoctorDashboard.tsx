@@ -35,7 +35,7 @@ export default function DoctorDashboard() {
       recordApi.getAll(),
     ]).then(([a, p, r]) => {
       const appts: Appointment[] = a.status === "fulfilled" ? a.value.data?.data ?? a.value.data ?? [] : [];
-      const today = new Date().toISOString().split("T")[0];
+      const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
       const todayAppts = appts.filter((x: Appointment) => x.date === today);
       setAllAppointments(appts);
       setStats({
@@ -63,7 +63,7 @@ export default function DoctorDashboard() {
   const getAppointmentTrendData = () => {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(); date.setDate(date.getDate() - (6 - i));
-      return date.toISOString().split("T")[0];
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     });
     return {
       labels: last7Days.map(d => {

@@ -21,6 +21,13 @@ const statusBgColor: Record<string, string> = {
   cancelled: "bg-red-500",
 };
 
+const toLocalISODate = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 export default function AppointmentCalendar({
   appointments,
   onSelectAppointment,
@@ -49,7 +56,7 @@ export default function AppointmentCalendar({
   const appointmentsByDay = useMemo(() => {
     const map: Record<string, Appointment[]> = {};
     weekDays.forEach((day) => {
-      const key = day.toISOString().split("T")[0];
+      const key = toLocalISODate(day);
       map[key] = [];
     });
 
@@ -184,7 +191,7 @@ export default function AppointmentCalendar({
 
             {/* Days */}
             {weekDays.map((day) => {
-              const dayKey = day.toISOString().split("T")[0];
+              const dayKey = toLocalISODate(day);
               const dayAppointments = appointmentsByDay[dayKey] || [];
               const isTodayColumn = isToday(day);
 
