@@ -325,7 +325,7 @@ export default function PatientPayments() {
                     <p className="font-bold text-blue-700">Thông tin tài khoản:</p>
                     <p>🏦 Ngân hàng: <strong>{qrData.bankId || "BIDV BANK"}</strong></p>
                     <p>🔢 STK: <strong>{qrData.accountNo || "1231270139"}</strong></p>
-                    <p>👤 Tên: <strong>{qrData.accountName || "TRAN QUOC HUY"}</strong></p>
+                    <p>👤 Tên: <strong>{qrData.accountName || "Trần Quốc Huy"}</strong></p>
                     <p>📝 Nội dung: <strong className="text-indigo-700 font-mono">{qrData.addInfo}</strong></p>
                   </div>
                   

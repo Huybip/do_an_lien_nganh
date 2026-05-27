@@ -5,7 +5,7 @@ const PAYMENT = {
   BANK_NAME:    "BIDV",
   BANK_CODE:    "310805",
   ACCOUNT_NO:   "1231270139",
-  ACCOUNT_NAME: "TRAN QUOC HUY",
+  ACCOUNT_NAME: "Trần Quốc Huy",
 };
 
 // ── VietQR URL (SePay – public, khong can API key) ──────────────────────────────

@@ -1123,7 +1123,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
                           {[
                             { label: "Ngân hàng", value: qrData.bankId || "BIDV" },
                             { label: "Số tài khoản", value: qrData.accountNo || "1231270139" },
-                            { label: "Tên tài khoản", value: qrData.accountName || "TRAN QUOC HUY" },
+                            { label: "Tên tài khoản", value: qrData.accountName || "Trần Quốc Huy" },
                             { label: "Nội dung CK", value: qrData.addInfo },
                           ].map((item) => (
                             <div key={item.label} className="flex justify-between px-4 py-2.5 border-b border-slate-100 last:border-0">
@@ -1769,7 +1769,7 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
                     {[
                       { label: "Ngân hàng", value: qrData.bankId || "BIDV" },
                       { label: "Số tài khoản", value: qrData.accountNo || "1231270139" },
-                      { label: "Tên tài khoản", value: qrData.accountName || "TRAN QUOC HUY" },
+                      { label: "Tên tài khoản", value: qrData.accountName || "Trần Quốc Huy" },
                       { label: "Nội dung CK", value: qrData.addInfo },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-0">
