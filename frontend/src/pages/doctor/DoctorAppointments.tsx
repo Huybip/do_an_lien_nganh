@@ -127,18 +127,6 @@ export default function DoctorAppointments() {
     }
   };
 
-  const handleCheckIn = async (id: string) => {
-    setActionLoading(true);
-    try {
-      await appointmentApi.update(id, { status: "checked-in" });
-      toast.success("Đã tiếp đón bệnh nhân thành công");
-      refetch();
-    } catch (error) {
-      toast.error("Tiếp đón bệnh nhân thất bại");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleOpenExam = (apt: Appointment) => {
     setSelected(apt);
@@ -305,16 +293,7 @@ export default function DoctorAppointments() {
               </button>
             </>
           )}
-          {a.status === "confirmed" &&
-            (a as any).approvalStatus === "approved" && (
-              <button
-                onClick={() => handleCheckIn(a.id)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-all active:scale-95"
-                disabled={actionLoading}
-              >
-                Tiếp đón
-              </button>
-            )}
+
           {a.status === "checked-in" && (
             <button
               onClick={() => handleOpenExam(a)}
@@ -584,20 +563,7 @@ export default function DoctorAppointments() {
                     </button>
                   </>
                 )}
-                {selected.status === "confirmed" &&
-                  (selected as any).approvalStatus === "approved" && (
-                    <button
-                      onClick={() => {
-                        handleCheckIn(selected.id);
-                        setShowModal(false);
-                      }}
-                      className="flex-1 min-w-fit px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:shadow-lg active:scale-95"
-                      style={{ background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)" }}
-                      disabled={actionLoading}
-                    >
-                      Tiếp đón bệnh nhân
-                    </button>
-                  )}
+
                 {selected.status === "checked-in" && (
                   <button
                     onClick={() => {

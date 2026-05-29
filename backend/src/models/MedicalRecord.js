@@ -18,6 +18,11 @@ const medicalRecordSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Appointment',
     },
+    type: {
+      type: String,
+      enum: ['examination', 'treatment', 'surgery', 'checkup'],
+      default: 'examination',
+    },
     date: {
       type: String,
       required: true,

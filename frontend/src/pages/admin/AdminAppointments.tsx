@@ -1,15 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminSidebar from "../../components/layout/AdminSidebar";
 import Table from "../../components/ui/Table";
 import Modal from "../../components/ui/Modal";
-import { appointmentApi, paymentApi } from "../../services/api";
+import AppointmentCalendar from "../../components/ui/AppointmentCalendar";
+import { appointmentApi, paymentApi, serviceApi, doctorApi, patientApi, unwrap } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
-import type { Appointment } from "../../types";
+import type { Appointment, Service, User } from "../../types";
 
 interface CompleteResult {
   appointment: Appointment;
   payment: any;
   message: string;
+}
+
+interface Patient {
+  _id: string;
+  id?: string;
+  name: string;
+  email: string;
 }
 
 export default function AdminAppointments() {
@@ -20,20 +28,30 @@ export default function AdminAppointments() {
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
 
   // Complete + QR modal state
   const [completeResult, setCompleteResult] = useState<CompleteResult | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  const todayDate = new Date().toISOString().split("T")[0];
 
   const filtered = (appointments || []).filter((apt) => {
     const matchSearch =
       !search ||
       apt.patientName?.toLowerCase().includes(search.toLowerCase()) ||
       apt.doctorName?.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === "all" || apt.status === filter;
+    
+    let matchFilter = false;
+    if (filter === "all") {
+      matchFilter = true;
+    } else if (filter === "today") {
+      matchFilter = apt.date === todayDate;
+    } else {
+      matchFilter = apt.status === filter;
+    }
     return matchSearch && matchFilter;
   });
 
@@ -63,7 +81,7 @@ export default function AdminAppointments() {
     setCompletingId(apt.id);
     try {
       const res = await appointmentApi.complete(apt.id, {});
-      const result = res.data?.data;
+      const result = res.data?.data || res.data;
       setCompleteResult(result);
       alert(`Hoàn thành khám cho bệnh nhân "${apt.patientName}" thành công!`);
       refetch();
@@ -93,12 +111,12 @@ export default function AdminAppointments() {
   };
 
   const statusBadgeColors: Record<string, string> = {
-    pending: "bg-gradient-to-r from-amber-400 to-orange-400",
-    confirmed: "bg-gradient-to-r from-emerald-400 to-teal-400",
-    "checked-in": "bg-gradient-to-r from-violet-400 to-purple-500",
-    completed: "bg-gradient-to-r from-sky-400 to-blue-500",
-    cancelled: "bg-gradient-to-r from-red-400 to-rose-500",
-    "no-show": "bg-gradient-to-r from-slate-400 to-gray-500",
+    pending: "from-amber-400 to-orange-400",
+    confirmed: "from-emerald-400 to-teal-400",
+    "checked-in": "from-violet-400 to-purple-500",
+    completed: "from-sky-400 to-blue-500",
+    cancelled: "from-red-400 to-rose-500",
+    "no-show": "from-slate-400 to-gray-500",
   };
 
   const columns = [
@@ -138,7 +156,7 @@ export default function AdminAppointments() {
     },
     {
       key: "time",
-      header: "GIỜ",
+      header: "GIỜ KHÁM",
       render: (apt: Appointment) => (
         <span className="text-slate-600 font-semibold bg-slate-50 px-3 py-1 rounded-lg">
           {apt.time}
@@ -150,10 +168,8 @@ export default function AdminAppointments() {
       header: "DỊCH VỤ / PHÍ KHÁM",
       render: (apt: Appointment) => (
         <div>
-          <p className="text-slate-600">
-            {typeof apt.service === "string"
-              ? apt.service
-              : apt.service?.name}
+          <p className="text-slate-600 max-w-[200px] truncate" title={apt.serviceName}>
+            {apt.serviceName || "Khám nha khoa"}
           </p>
           {(apt.fee || 0) > 0 ? (
             <p className="text-xs text-emerald-600 font-semibold">
@@ -201,16 +217,14 @@ export default function AdminAppointments() {
       header: "THAO TÁC",
       render: (apt: Appointment) => (
         <div className="flex gap-1.5 flex-wrap">
-          {/* Check-in button */}
           {apt.status === "confirmed" && (
             <button
               onClick={() => handleCheckIn(apt.id)}
               className="px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 font-semibold text-xs transition-all border border-sky-200"
             >
-              Tiếp đón
+              Check-in (Tiếp đón)
             </button>
           )}
-          {/* Complete button */}
           {apt.status === "checked-in" && (
             <button
               onClick={() => handleComplete(apt)}
@@ -220,14 +234,12 @@ export default function AdminAppointments() {
               {completingId === apt.id ? "..." : "Hoàn thành"}
             </button>
           )}
-          {/* Chi tiet */}
           <button
             onClick={() => { setSelected(apt); setShowModal(true); }}
             className="px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium text-xs transition-all border border-sky-200"
           >
             Chi tiết
           </button>
-          {/* Xoa */}
           <button
             onClick={() => handleDelete(apt.id)}
             disabled={deleting === apt.id}
@@ -285,6 +297,7 @@ export default function AdminAppointments() {
 
   const filterPills = [
     { key: "all", label: "Tất cả", count: appointments?.length || 0 },
+    { key: "today", label: "Khám hôm nay", count: appointments?.filter((a) => a.date === todayDate).length || 0 },
     { key: "pending", label: "Chờ duyệt", count: appointments?.filter((a) => a.status === "pending").length || 0 },
     { key: "confirmed", label: "Đã duyệt", count: appointments?.filter((a) => a.status === "confirmed").length || 0 },
     { key: "checked-in", label: "Chờ khám", count: appointments?.filter((a) => a.status === "checked-in").length || 0 },
@@ -306,23 +319,26 @@ export default function AdminAppointments() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowBookingModal(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-200 transition-all text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Đặt lịch mới
+              </button>
               <div className="flex bg-slate-100 rounded-xl p-1">
                 <button
                   onClick={() => setViewMode("table")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "table" ? "bg-white text-sky-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                 >
-                  <svg className="w-4 h-4 inline-block mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
                   Bảng
                 </button>
                 <button
                   onClick={() => setViewMode("calendar")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "calendar" ? "bg-white text-sky-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                 >
-                  <svg className="w-4 h-4 inline-block mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
                   Lịch
                 </button>
               </div>
@@ -394,14 +410,15 @@ export default function AdminAppointments() {
                 <Table columns={columns} data={filtered} loading={loading} />
               </div>
             ) : (
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">Chế độ xem lịch</h3>
-                <p className="text-slate-500 text-sm">Hiển thị {filtered.length} lịch hẹn</p>
+              <div className="p-4 bg-white/70">
+                <AppointmentCalendar
+                  appointments={filtered}
+                  onSelectAppointment={(apt) => {
+                    setSelected(apt);
+                    setShowModal(true);
+                  }}
+                  loading={loading}
+                />
               </div>
             )}
           </div>
@@ -443,14 +460,14 @@ export default function AdminAppointments() {
               <div className="p-4 bg-slate-50 rounded-xl col-span-2">
                 <p className="text-xs text-slate-400 mb-1">Dịch vụ</p>
                 <p className="font-semibold text-slate-700">
-                  {typeof selected.service === "string" ? selected.service : selected.service?.name || "—"}
+                  {selected.serviceName || "—"}
                 </p>
               </div>
             </div>
             <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl">
               <p className="text-xs text-slate-400 mb-2">Trạng thái</p>
               <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold text-white bg-gradient-to-r ${statusBadgeColors[selected.status] || "from-slate-400 to-gray-500"}`}>
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
                 {statusLabels[selected.status] || selected.status}
               </span>
             </div>
@@ -500,6 +517,11 @@ export default function AdminAppointments() {
         )}
       </Modal>
 
+      {/* Admin Booking Modal */}
+      <Modal open={showBookingModal} onClose={() => setShowBookingModal(false)} title="Đặt lịch khám hộ bệnh nhân" size="lg">
+        <AdminBookingForm onClose={() => { setShowBookingModal(false); refetch(); }} />
+      </Modal>
+
       {/* Cash Checkout Result Modal */}
       {completeResult?.payment && (
         <CashCheckoutModal
@@ -510,6 +532,236 @@ export default function AdminAppointments() {
         />
       )}
     </div>
+  );
+}
+
+// ── Admin Booking Form ────────────────────────────────────────────────────────
+function AdminBookingForm({ onClose }: { onClose: () => void }) {
+  const [form, setForm] = useState({
+    patientId: "",
+    doctorId: "",
+    date: "",
+    shiftType: "",
+    notes: "",
+  });
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<User[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [loadingLists, setLoadingLists] = useState(true);
+  const [loadingShifts, setLoadingShifts] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchLists = async () => {
+      setLoadingLists(true);
+      try {
+        const [pRes, dRes, sRes] = await Promise.all([
+          patientApi.getAll(),
+          doctorApi.getAll(),
+          serviceApi.getAll(),
+        ]);
+        setPatients(pRes.data || []);
+        setDoctors(dRes.data || []);
+        setServices(sRes.data || []);
+      } catch (err) {
+        console.error("Failed to load list details:", err);
+      } finally {
+        setLoadingLists(false);
+      }
+    };
+    fetchLists();
+  }, []);
+
+  const handleDoctorOrDateChange = async (doctorId: string, date: string) => {
+    if (!doctorId || !date) {
+      setShifts([]);
+      return;
+    }
+    setLoadingShifts(true);
+    try {
+      const payload = unwrap<{ shifts: any[] }>(await appointmentApi.getSlots(doctorId, date));
+      setShifts(Array.isArray(payload?.shifts) ? payload.shifts : []);
+    } catch {
+      setShifts([]);
+    } finally {
+      setLoadingShifts(false);
+    }
+  };
+
+  const handleServiceToggle = (id: string) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.patientId) { setError("Vui lòng chọn bệnh nhân."); return; }
+    if (!form.doctorId) { setError("Vui lòng chọn bác sĩ."); return; }
+    if (!form.date) { setError("Vui lòng chọn ngày khám."); return; }
+    if (!form.shiftType) { setError("Vui lòng chọn ca trực."); return; }
+    if (selectedServiceIds.length === 0) { setError("Vui lòng chọn ít nhất một dịch vụ."); return; }
+
+    setSubmitting(true);
+    setError("");
+    try {
+      await appointmentApi.create({
+        ...form,
+        serviceIds: selectedServiceIds,
+      });
+      alert("Đặt lịch khám thành công!");
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Đặt lịch thất bại.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Chọn bệnh nhân *</label>
+          <select
+            className="input"
+            value={form.patientId}
+            onChange={(e) => setForm({ ...form, patientId: e.target.value })}
+            required
+            disabled={loadingLists}
+          >
+            <option value="">Chọn bệnh nhân...</option>
+            {patients.map((p) => (
+              <option key={p._id} value={p._id}>{p.name} - {p.email}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Chọn bác sĩ *</label>
+          <select
+            className="input"
+            value={form.doctorId}
+            onChange={(e) => {
+              const docId = e.target.value;
+              setForm({ ...form, doctorId: docId, shiftType: "" });
+              handleDoctorOrDateChange(docId, form.date);
+            }}
+            required
+            disabled={loadingLists}
+          >
+            <option value="">Chọn bác sĩ...</option>
+            {doctors.map((d) => (
+              <option key={d._id} value={d._id}>Dr. {d.name} - {d.specialization}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Ngày khám *</label>
+          <input
+            type="date"
+            className="input"
+            min={new Date().toISOString().split("T")[0]}
+            value={form.date}
+            onChange={(e) => {
+              const dt = e.target.value;
+              setForm({ ...form, date: dt, shiftType: "" });
+              handleDoctorOrDateChange(form.doctorId, dt);
+            }}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Chọn ca trực *</label>
+          {loadingShifts ? (
+            <div className="text-xs text-slate-400 py-3">Đang tải lịch trực...</div>
+          ) : shifts.length === 0 && form.doctorId && form.date ? (
+            <div className="text-xs text-amber-600 py-3 font-semibold">Bác sĩ không có ca trực nào ngày này</div>
+          ) : (
+            <select
+              className="input"
+              value={form.shiftType}
+              onChange={(e) => setForm({ ...form, shiftType: e.target.value })}
+              required
+              disabled={shifts.length === 0}
+            >
+              <option value="">Chọn ca trực...</option>
+              {shifts.filter(s => s.isRegistered && s.available).map((s: any) => (
+                <option key={s.shiftType} value={s.shiftType}>
+                  {s.label} ({s.startTime}–{s.endTime}) - Còn {s.remaining} chỗ
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Multiple Services checkbox list */}
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Tích chọn các dịch vụ điều trị *</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-4 rounded-xl border max-h-44 overflow-y-auto">
+          {services.map((s) => {
+            const isChecked = selectedServiceIds.includes(s._id);
+            return (
+              <label key={s._id} className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-100 hover:border-slate-200 cursor-pointer text-xs font-bold select-none text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => handleServiceToggle(s._id)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                />
+                <span className="flex-1 truncate">{s.name}</span>
+                <span className="text-emerald-600 shrink-0">{Number(s.price).toLocaleString("vi-VN")} đ</span>
+              </label>
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-400 mt-1.5 text-right font-bold">
+          Tổng phí dự kiến: <span className="text-emerald-600 font-extrabold text-sm">{services.filter(s => selectedServiceIds.includes(s._id)).reduce((sum, s) => sum + s.price, 0).toLocaleString("vi-VN")} đ</span>
+        </p>
+      </div>
+
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Ghi chú yêu cầu</label>
+        <textarea
+          className="input resize-none"
+          rows={2}
+          placeholder="Yêu cầu đặc biệt của bệnh nhân..."
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+        />
+      </div>
+
+      <div className="flex gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold text-sm hover:shadow-lg disabled:opacity-50"
+        >
+          {submitting ? "Đang xử lý..." : "Xác nhận đặt lịch"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition"
+        >
+          Hủy
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -553,7 +805,13 @@ function CashCheckoutModal({
   const handlePrintReceipt = () => {
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`
+    
+    // Dynamic mapping of all services inside payment.services
+    const serviceItems = payment.services && payment.services.length > 0
+      ? payment.services
+      : [{ name: appointment.serviceName || "Khám nha khoa", price: amount }];
+
+    const winContent = `
       <html><head><title>Phiếu Thu Tiền Mặt</title>
       <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px; color: #334155; }
@@ -575,14 +833,13 @@ function CashCheckoutModal({
             <strong>Ngày lập:</strong> ${new Date().toLocaleDateString("vi-VN")}
           </p>
           <div class="divider"></div>
-          <div class="item-row">
-            <span>Dịch vụ điều trị:</span>
-            <strong>${appointment.serviceName || "Khám nha khoa"}</strong>
-          </div>
-          <div class="item-row">
-            <span>Đơn giá:</span>
-            <span>${amount.toLocaleString("vi-VN")} đ</span>
-          </div>
+          <p style="text-align: left; font-size: 13px; font-weight: bold; margin-bottom: 10px; color: #475569;">Chi tiết dịch vụ:</p>
+          ${serviceItems.map((s: any, idx: number) => `
+            <div class="item-row" style="font-size: 13px;">
+              <span>${idx + 1}. ${s.name}</span>
+              <span>${s.price.toLocaleString("vi-VN")} đ</span>
+            </div>
+          `).join("")}
           <div class="divider"></div>
           <div class="total-row">
             <span>TỔNG TIỀN:</span>
@@ -603,7 +860,8 @@ function CashCheckoutModal({
         </div>
         <script>window.print();<\/script>
       </body></html>
-    `);
+    `;
+    win.document.write(winContent);
     win.document.close();
   };
 

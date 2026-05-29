@@ -19,6 +19,8 @@ import AdminHelp from "./pages/admin/AdminHelp";
 import AdminScores from "./pages/admin/AdminScores";
 import AdminShifts from "./pages/admin/AdminShifts";
 import AdminPayments from "./pages/admin/AdminPayments";
+import AdminRecords from "./pages/admin/AdminRecords";
+import AdminCheckin from "./pages/admin/AdminCheckin"; 
 
 // Doctor
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
@@ -28,8 +30,8 @@ import DoctorShifts from "./pages/doctor/DoctorShifts";
 import DoctorRecords from "./pages/doctor/DoctorRecords";
 import DoctorImages from "./pages/doctor/DoctorImages";
 import DoctorChat from "./pages/doctor/DoctorChat";
-
 import DoctorPayments from "./pages/doctor/DoctorPayments";
+import DoctorProfile from "./pages/doctor/DoctorProfile";
 
 // Patient
 import PatientDashboard from "./pages/patient/PatientDashboard";
@@ -146,6 +148,22 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/records"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminRecords />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/checkin"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminCheckin />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/help"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
@@ -216,6 +234,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["doctor"]}>
             <DoctorChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/profile"
+        element={
+          <ProtectedRoute allowedRoles={["doctor"]}>
+            <DoctorProfile />
           </ProtectedRoute>
         }
       />

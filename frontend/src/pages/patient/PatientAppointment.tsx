@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PatientSidebar from "../../components/layout/PatientSidebar";
 import Table from "../../components/ui/Table";
 import Modal from "../../components/ui/Modal";
 import AppointmentCalendar from "../../components/ui/AppointmentCalendar";
-import { api, unwrap, serviceApi, doctorApi, appointmentApi } from "../../services/api";
+import { api, unwrap, serviceApi, doctorApi, appointmentApi, shiftApi } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
 import type { Appointment, Service, User } from "../../types";
 
@@ -39,15 +39,17 @@ export default function PatientAppointment() {
       key: "service",
       header: "Dịch vụ",
       render: (a: Appointment) => (
-        <span className="font-bold text-slate-700">{typeof a.service === "string" ? a.service : a.service?.name}</span>
+        <span className="font-bold text-slate-700">
+          {(a as any).serviceName || (typeof a.service === "string" ? a.service : a.service?.name) || "Khám tổng quát"}
+        </span>
       ),
     },
     {
       key: "doctorName",
       header: "Bác sĩ",
       render: (a: Appointment) => (
-        <span className="flex items-center gap-2 text-slate-600">
-          <span className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0"
+        <span className="flex items-center gap-2 text-slate-600 font-medium">
+          <span className="w-7 h-7 rounded-xl flex items-center justify-center text-white text-[10px] font-black flex-shrink-0"
             style={{ background: "linear-gradient(135deg, #0ea5e9, #14b8a6)" }}>
             {a.doctorName?.charAt(0).toUpperCase()}
           </span>
@@ -55,7 +57,7 @@ export default function PatientAppointment() {
         </span>
       ),
     },
-    { key: "date", header: "Ngày", render: (a: Appointment) => <span className="text-slate-500 text-sm font-mono">{a.date}</span> },
+    { key: "date", header: "Ngày khám", render: (a: Appointment) => <span className="text-slate-500 text-sm font-mono font-semibold">{a.date}</span> },
     {
       key: "shiftType",
       header: "Ca khám",
@@ -90,7 +92,7 @@ export default function PatientAppointment() {
         a.status === "pending" ? (
           <button onClick={async (e) => { e.stopPropagation(); await appointmentApi.cancel(a.id); refetch(); }}
             className="text-xs font-semibold text-red-500 hover:text-red-700 px-2.5 py-1 rounded-lg hover:bg-red-50 transition">
-            Hủy
+            Hủy lịch
           </button>
         ) : null,
     },
@@ -102,7 +104,7 @@ export default function PatientAppointment() {
       <div className="flex-1 lg:ml-0 min-w-0 overflow-y-auto">
         <div className="glass-header sticky top-0 z-10 px-6 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Lịch hẹn</h1>
+            <h1 className="text-xl font-bold text-slate-800">Lịch hẹn của tôi</h1>
             <p className="text-xs text-slate-400 mt-0.5">{(appointments || []).length} lịch hẹn đã đặt</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -125,7 +127,7 @@ export default function PatientAppointment() {
           <div className="flex items-center gap-3 animate-fade-in">
             <div className="flex gap-1 p-1 rounded-xl bg-white border border-slate-200 shadow-sm">
               {[
-                { key: "calendar" as const, label: "Lịch", icon: (
+                { key: "calendar" as const, label: "Lịch trực quan", icon: (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18"/></svg>
                 ) },
                 { key: "table" as const, label: "Danh sách", icon: (
@@ -133,10 +135,8 @@ export default function PatientAppointment() {
                 ) },
               ].map((v) => (
                 <button key={v.key} onClick={() => setViewType(v.key)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                    viewType === v.key ? "text-white shadow-md" : "text-slate-500 hover:text-slate-700"
-                  }`}
-                  style={viewType === v.key ? { background: "linear-gradient(135deg, #0ea5e9, #14b8a6)" } : {}}>
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-500 hover:text-slate-700"
+                  style={viewType === v.key ? { background: "linear-gradient(135deg, #0ea5e9, #14b8a6)", color: "white" } : {}}>
                   {v.icon}{v.label}
                 </button>
               ))}
@@ -163,27 +163,28 @@ export default function PatientAppointment() {
           <Modal open={!!selectedAppointment} onClose={() => setSelectedAppointment(null)} title="Chi tiết lịch khám">
             <div className="space-y-4">
               {[
-                ["Bác sĩ", selectedAppointment.doctorName],
-                ["Dịch vụ", typeof selectedAppointment.service === "string" ? selectedAppointment.service : selectedAppointment.service?.name || "Khám tổng quát"],
-                ["Ngày", selectedAppointment.date],
+                ["Bác sĩ phụ trách", `Dr. ${selectedAppointment.doctorName}`],
+                ["Dịch vụ đã chọn", selectedAppointment.serviceName || (typeof selectedAppointment.service === "string" ? selectedAppointment.service : selectedAppointment.service?.name) || "Khám tổng quát"],
+                ["Ngày khám", selectedAppointment.date],
                 [
-                  "Ca khám",
+                  "Khung giờ khám",
                   (() => {
                     const type = (selectedAppointment as any).shiftType || "morning";
                     const cfg = SHIFT_CONFIG[type as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
                     return `${cfg.icon} ${cfg.label} (${cfg.range})`;
                   })(),
                 ],
-                ["Ghi chú", selectedAppointment.notes || "—"],
+                ["Phí dịch vụ", `${Number(selectedAppointment.fee || 0).toLocaleString("vi-VN")} ₫`],
+                ["Ghi chú khám", selectedAppointment.notes || "—"],
               ].map(([k, v]) => (
                 <div key={k} className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 transition">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider w-24 flex-shrink-0 pt-1">{k}</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0 pt-1">{k}</span>
                   <span className="text-sm font-semibold text-slate-700">{v}</span>
                 </div>
               ))}
 
               <div className="pt-2 border-t border-slate-100">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trạng thái</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trạng thái đặt lịch</p>
                 {(() => {
                   const cfg = statusConfig[selectedAppointment.status] || statusConfig.pending;
                   return (
@@ -205,7 +206,7 @@ export default function PatientAppointment() {
                     className="flex items-center gap-2 flex-1 justify-center px-4 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-lg"
                     style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", boxShadow: "0 4px 12px rgba(239,68,68,0.25)" }}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                    Hủy lịch
+                    Hủy lịch hẹn
                   </button>
                 )}
                 <button onClick={() => setSelectedAppointment(null)}
@@ -217,76 +218,222 @@ export default function PatientAppointment() {
           </Modal>
         )}
 
-        {/* Booking Modal */}
-        <Modal open={showModal} onClose={() => setShowModal(false)} title="Đặt lịch khám theo ca trực">
-          <BookingForm services={services || []} doctors={doctors || []} onClose={() => { setShowModal(false); refetch(); }} />
+        {/* Dynamic Booking Flow Modal */}
+        <Modal open={showModal} onClose={() => setShowModal(false)} title="Đăng ký lịch khám theo ca trực bác sĩ">
+          <BookingFlow services={services || []} onClose={() => { setShowModal(false); refetch(); }} />
         </Modal>
       </div>
     </div>
   );
 }
 
-// ── Booking Form with Shift Selection ────────────────────────────────────────
-function BookingForm({ services, doctors, onClose }: { services: Service[]; doctors: User[]; onClose: () => void }) {
-  const [form, setForm] = useState({ serviceId: "", doctorId: "", date: "" });
-  const [shiftType, setShiftType] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+// ── Booking Flow Component with Shift card selector & service compiler ──────
+function BookingFlow({ services, onClose }: { services: Service[]; onClose: () => void }) {
+  const [upcomingShifts, setUpcomingShifts] = useState<any[]>([]);
+  const [shiftsLoading, setShiftsLoading] = useState(false);
+  const [selectedShift, setSelectedShift] = useState<any | null>(null);
+
+  // Filters for shift browser
+  const [searchDoc, setSearchDoc] = useState("");
+  const [searchSpec, setSearchSpec] = useState("");
+
+  // Step 2 Booking details
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [shifts, setShifts] = useState<any[]>([]);
 
-  const fetchShifts = async (doctorId: string, date: string) => {
-    if (!doctorId || !date) { setShifts([]); return; }
-    setSlotsLoading(true);
-    try {
-      // Call API directly + unwrap to get clean payload: { doctorId, date, shifts, availableCount }
-      const payload = unwrap<{ shifts: any[] }>(await api.get("/appointments/slots", { params: { doctorId, date } }));
-      setShifts(Array.isArray(payload?.shifts) ? payload.shifts : []);
-    } catch {
-      setShifts([]);
-    } finally {
-      setSlotsLoading(false);
-    }
+  useEffect(() => {
+    const fetchUpcomingShifts = async () => {
+      setShiftsLoading(true);
+      try {
+        const res = await shiftApi.getUpcoming();
+        setUpcomingShifts(unwrap(res) || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setShiftsLoading(false);
+      }
+    };
+    fetchUpcomingShifts();
+  }, []);
+
+  // Filter logic
+  const filteredShifts = upcomingShifts.filter((s: any) => {
+    const nameMatch = s.doctorName?.toLowerCase().includes(searchDoc.toLowerCase()) || 
+                      s.doctor?.name?.toLowerCase().includes(searchDoc.toLowerCase());
+    const specMatch = !searchSpec || 
+                      s.doctor?.specialization?.toLowerCase() === searchSpec.toLowerCase();
+    return nameMatch && specMatch;
+  });
+
+  // Extract unique specializations for filter dropdown
+  const specializations = Array.from(new Set(
+    upcomingShifts.map((s: any) => s.doctor?.specialization).filter(Boolean)
+  ));
+
+  const handleServiceToggle = (id: string) => {
+    setSelectedServiceIds(prev =>
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
   };
 
-  const handleDoctorChange = (id: string) => {
-    setForm({ ...form, doctorId: id, date: "" });
-    setShiftType("");
-    setShifts([]);
-  };
-
-  const handleDateChange = (date: string) => {
-    const newForm = { ...form, date };
-    setForm(newForm);
-    setShiftType("");
-    fetchShifts(newForm.doctorId, date);
+  const handleSelectShift = (shift: any) => {
+    setSelectedShift(shift);
+    setError("");
+    setSelectedServiceIds([]);
+    setNotes("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shiftType) { setError("Vui lòng chọn một ca trực."); return; }
-    setLoading(true);
+    if (selectedServiceIds.length === 0) {
+      setError("Vui lòng chọn ít nhất một dịch vụ khám bệnh.");
+      return;
+    }
+    setSubmitting(true);
     setError("");
     try {
       await appointmentApi.create({
-        serviceId: form.serviceId,
-        doctorId: form.doctorId,
-        date: form.date,
-        shiftType,
-        notes: "",
+        doctorId: selectedShift.doctorId || selectedShift.doctor?._id || selectedShift.doctor,
+        date: selectedShift.date,
+        shiftType: selectedShift.shiftType,
+        serviceIds: selectedServiceIds,
+        notes: notes,
       });
       onClose();
     } catch (err: any) {
       console.error("[BOOKING] error:", err);
-      const msg = err.response?.data?.message || err.message || "Đặt lịch thất bại. Vui lòng thử lại.";
+      const msg = err.response?.data?.message || err.message || "Đăng ký khám thất bại. Vui lòng thử lại.";
       setError(msg);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  const totalFee = services
+    .filter((s) => selectedServiceIds.includes(s._id))
+    .reduce((sum, s) => sum + s.price, 0);
+
+  const totalDuration = services
+    .filter((s) => selectedServiceIds.includes(s._id))
+    .reduce((sum, s) => sum + s.duration, 0);
+
+  // SCREEN 1: BROWSE UPCOMING SHIFTS
+  if (!selectedShift) {
+    return (
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+        <div>
+          <p className="text-sm text-slate-500">Lựa chọn bác sĩ và thời gian trực phù hợp để đặt lịch khám nhanh chóng.</p>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+          <div className="flex-1">
+            <input
+              type="text"
+              className="input text-sm py-2"
+              placeholder="Tìm tên bác sĩ..."
+              value={searchDoc}
+              onChange={(e) => setSearchDoc(e.target.value)}
+            />
+          </div>
+          <div className="sm:w-48">
+            <select
+              className="input text-sm py-2"
+              value={searchSpec}
+              onChange={(e) => setSearchSpec(e.target.value)}
+            >
+              <option value="">Tất cả chuyên khoa</option>
+              {specializations.map((spec: any) => (
+                <option key={spec} value={spec}>{spec}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Shift list grid */}
+        {shiftsLoading ? (
+          <div className="flex justify-center items-center py-10">
+            <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin" />
+          </div>
+        ) : filteredShifts.length === 0 ? (
+          <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-6 text-center">
+            <p className="font-semibold text-amber-800 text-sm">Không tìm thấy ca trực nào phù hợp.</p>
+            <p className="text-xs text-amber-500 mt-1">Vui lòng thay đổi từ khóa tìm kiếm hoặc quay lại sau.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {filteredShifts.map((s: any) => {
+              const cfg = SHIFT_CONFIG[s.shiftType as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
+              const isFull = s.remaining <= 0 || s.isFull;
+
+              return (
+                <div
+                  key={s.id || s._id}
+                  className={`card p-4 border border-slate-100 bg-white shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300 ${
+                    isFull ? "opacity-75" : ""
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* Doctor Info */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow">
+                        {(s.doctorName || s.doctor?.name || "BS").charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm">Dr. {s.doctorName || s.doctor?.name}</h4>
+                        <p className="text-[11px] text-slate-400 font-semibold uppercase">{s.doctor?.specialization || "Nha khoa Tổng quát"}</p>
+                      </div>
+                    </div>
+
+                    <hr className="border-slate-100" />
+
+                    {/* Shift specifics */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold bg-slate-50 px-2 py-1 rounded-lg">
+                        <span>📅</span>
+                        <span>{s.date}</span>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${cfg.bg} ${cfg.text}`}>
+                        {cfg.icon} {cfg.label}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-500 font-medium">Khung giờ trực: <span className="font-mono font-bold text-slate-700">{s.startTime} – {s.endTime}</span></p>
+                  </div>
+
+                  {/* Booking state */}
+                  <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-50">
+                    <span className={`text-xs font-bold ${isFull ? "text-red-500" : "text-emerald-600"}`}>
+                      {isFull ? "Đã đầy chỗ" : `Còn ${s.remaining}/${s.maxPatients} chỗ`}
+                    </span>
+                    <button
+                      onClick={() => handleSelectShift(s)}
+                      disabled={isFull}
+                      className={`px-4 py-2 text-xs font-bold rounded-xl shadow-sm transition-all ${
+                        isFull
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          : "text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 hover:shadow"
+                      }`}
+                    >
+                      Đăng ký khám
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // SCREEN 2: SELECT SERVICES & SUBMIT
+  const selectedCfg = SHIFT_CONFIG[selectedShift.shiftType as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
       {error && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 font-semibold">
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -296,135 +443,111 @@ function BookingForm({ services, doctors, onClose }: { services: Service[]; doct
         </div>
       )}
 
-      {[
-        { label: "Dịch vụ", key: "serviceId" as const, options: services.map(s => ({ value: s._id, label: `${s.name} – ${Number(s.price).toLocaleString("vi-VN")} ₫` })) },
-        { label: "Bác sĩ", key: "doctorId" as const, options: doctors.map(d => ({ value: d._id, label: `Dr. ${d.name} – ${d.specialization || "Tổng quát"}` })) },
-      ].map(({ label, key, options }) => (
-        <div key={key}>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{label}</label>
-          <select
-            className="input"
-            value={form[key]}
-            onChange={(e) => {
-              if (key === "doctorId") handleDoctorChange(e.target.value);
-              else setForm({ ...form, [key]: e.target.value });
-            }}
-            required
-          >
-            <option value="">Chọn {label.toLowerCase()}...</option>
-            {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+      {/* Selected Shift Information Banner */}
+      <div className="bg-gradient-to-r from-sky-50/50 to-blue-50/50 border border-sky-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-base font-black shadow-md">
+            {(selectedShift.doctorName || selectedShift.doctor?.name || "BS").charAt(0)}
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-800">Dr. {selectedShift.doctorName || selectedShift.doctor?.name}</h4>
+            <p className="text-xs text-slate-400 font-semibold uppercase">{selectedShift.doctor?.specialization || "Nha khoa Tổng quát"}</p>
+          </div>
         </div>
-      ))}
 
-      <div>
-        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ngày khám</label>
-        <input type="date" className="input"
-          value={form.date}
-          min={new Date().toISOString().split("T")[0]}
-          onChange={(e) => handleDateChange(e.target.value)}
-          required />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-mono font-bold bg-white text-slate-600 px-2.5 py-1 rounded-lg border border-slate-100">
+            {selectedShift.date}
+          </span>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${selectedCfg.bg} ${selectedCfg.text}`}>
+            {selectedCfg.icon} {selectedCfg.label} ({selectedShift.startTime}–{selectedShift.endTime})
+          </span>
+        </div>
       </div>
 
-      {/* Shift Selection */}
-      {form.doctorId && form.date && (
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-            Chọn ca trực
-          </label>
+      {/* Multiple Services Choice (Checkboxes) */}
+      <div className="space-y-2.5">
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Chọn dịch vụ khám (Được chọn nhiều)</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
+          {services.map((s) => {
+            const isChecked = selectedServiceIds.includes(s._id);
+            return (
+              <label
+                key={s._id}
+                className={`relative flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                  isChecked
+                    ? "border-emerald-500 bg-emerald-50/30"
+                    : "border-slate-100 hover:border-slate-200 bg-white"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => handleServiceToggle(s._id)}
+                  className="w-4.5 h-4.5 accent-emerald-500 rounded border-slate-300"
+                />
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-slate-700">{s.name}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Thời gian: {s.duration || 30} phút</p>
+                </div>
+                <span className={`text-xs font-extrabold ${isChecked ? "text-emerald-700" : "text-slate-600"}`}>
+                  {Number(s.price).toLocaleString("vi-VN")} ₫
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
 
-          {slotsLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <div className="w-6 h-6 border-3 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin" />
-            </div>
-          ) : shifts.length === 0 && form.doctorId && form.date ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-              <p className="text-sm font-semibold text-amber-700">Bác sĩ chưa đăng ký ca trực vào ngày này.</p>
-              <p className="text-xs text-amber-500 mt-1">Vui lòng chọn ngày khác hoặc liên hệ phòng khám.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              {(["morning", "afternoon", "evening"] as const).map((type) => {
-                const shift = shifts.find((s: any) => s.shiftType === type);
-                const cfg = SHIFT_CONFIG[type];
-                const available = shift?.available;
-                const isRegistered = shift?.isRegistered;
+      {/* Notes Textarea */}
+      <div>
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ghi chú triệu chứng / yêu cầu</label>
+        <textarea
+          className="input min-h-[70px] text-sm"
+          placeholder="Ví dụ: Đau răng hàm dưới bên trái, muốn nhổ răng khôn..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </div>
 
-                return (
-                  <label key={type}
-                    className={`relative flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      !isRegistered
-                        ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
-                        : shiftType === type
-                        ? `${cfg.border} ${cfg.bg}`
-                        : available
-                        ? "border-slate-200 hover:border-slate-300 bg-white cursor-pointer"
-                        : "opacity-60 cursor-not-allowed border-slate-200 bg-slate-50"
-                    }`}>
-                    <input
-                      type="radio"
-                      name="shiftType"
-                      value={type}
-                      disabled={!isRegistered || !available}
-                      checked={shiftType === type}
-                      onChange={() => setShiftType(type)}
-                      className="w-4 h-4 accent-emerald-600"
-                    />
-                    <div className="text-2xl">{cfg.icon}</div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold ${cfg.text}`}>{cfg.label}</p>
-                      <p className="text-xs text-slate-400">{cfg.range}</p>
-                      {isRegistered && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {available
-                            ? `Còn ${shift.remaining}/${shift.maxPatients} chỗ`
-                            : `Đã đầy (${shift.booked}/${shift.maxPatients})`}
-                        </p>
-                      )}
-                      {!isRegistered && (
-                        <p className="text-xs text-amber-500 mt-0.5">Bác sĩ chưa đăng ký ca này</p>
-                      )}
-                    </div>
-                    {!isRegistered ? (
-                      <span className="text-xs font-semibold text-slate-400">Chưa có</span>
-                    ) : available ? (
-                      <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">Còn chỗ</span>
-                    ) : (
-                      <span className="text-xs font-bold text-red-600 bg-red-100 px-2.5 py-1 rounded-full">Đầy</span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          )}
+      {/* Fee & Duration Summary */}
+      {selectedServiceIds.length > 0 && (
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex justify-between items-center flex-wrap gap-2">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ước tính thời lượng</p>
+            <p className="text-sm font-semibold text-slate-700">⏱️ {totalDuration} phút</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng phí thanh toán</p>
+            <p className="text-base font-extrabold text-emerald-600">{totalFee.toLocaleString("vi-VN")} ₫</p>
+          </div>
         </div>
       )}
 
-      {!form.doctorId && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-          <p className="text-sm font-semibold text-blue-700">Vui lòng chọn bác sĩ và ngày khám trước</p>
-          <p className="text-xs text-blue-500 mt-1">Sau đó hệ thống sẽ hiển thị các ca trực có sẵn</p>
-        </div>
-      )}
-
-      {form.doctorId && !form.date && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-          <p className="text-sm font-semibold text-blue-700">Chọn ngày để xem ca trực</p>
-        </div>
-      )}
-
-      <div className="flex gap-3 pt-2 flex-wrap">
-        <button type="submit" disabled={loading || !shiftType}
-          className="btn-primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-          {loading ? (
-            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Đang đặt...</>
-          ) : (
-            <><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" d="M5 13l4 4L19 7"/></svg> Đặt lịch theo ca</>
-          )}
+      {/* Actions */}
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setSelectedShift(null)}
+          className="px-5 py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition"
+        >
+          Quay lại
         </button>
-        <button type="button" onClick={onClose}
-          className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition">
-          Hủy
+
+        <button
+          type="submit"
+          disabled={submitting || selectedServiceIds.length === 0}
+          className="flex-1 px-5 py-3 text-white font-bold rounded-xl text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: "linear-gradient(135deg, #0ea5e9, #14b8a6)" }}
+        >
+          {submitting ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Đang đăng ký...
+            </div>
+          ) : (
+            "Xác nhận đăng ký khám"
+          )}
         </button>
       </div>
     </form>

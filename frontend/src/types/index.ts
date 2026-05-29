@@ -47,6 +47,7 @@ export interface Appointment {
   approvedAt?: string;
   fee?: number;
   isPaid?: boolean;
+  duration?: number;
 }
 
 export interface MedicalRecord {

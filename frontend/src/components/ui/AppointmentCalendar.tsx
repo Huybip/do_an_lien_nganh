@@ -28,6 +28,82 @@ const toLocalISODate = (date: Date) => {
   return `${y}-${m}-${d}`;
 };
 
+const layoutDayAppointments = (dayApts: Appointment[]) => {
+  const sorted = [...dayApts].sort((a, b) => {
+    const [hA, mA] = a.time.split(":").map(Number);
+    const [hB, mB] = b.time.split(":").map(Number);
+    return (hA * 60 + mA) - (hB * 60 + mB);
+  });
+
+  const getAptMinutes = (apt: Appointment) => {
+    const [h, m] = apt.time.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  // Find overlapping clusters
+  const clusters: { start: number; end: number; apts: Appointment[] }[] = [];
+  sorted.forEach((apt) => {
+    const start = getAptMinutes(apt);
+    const end = start + (apt.duration || 60);
+
+    let merged = false;
+    for (const cluster of clusters) {
+      if (start < cluster.end && end > cluster.start) {
+        cluster.apts.push(apt);
+        cluster.start = Math.min(cluster.start, start);
+        cluster.end = Math.max(cluster.end, end);
+        merged = true;
+        break;
+      }
+    }
+
+    if (!merged) {
+      clusters.push({ start, end, apts: [apt] });
+    }
+  });
+
+  // For each cluster, assign column positions
+  const layoutItems: { apt: Appointment; left: number; width: number }[] = [];
+  
+  clusters.forEach((cluster) => {
+    const cols: Appointment[][] = [];
+    cluster.apts.forEach((apt) => {
+      const start = getAptMinutes(apt);
+      const end = start + (apt.duration || 60);
+
+      let colIdx = 0;
+      while (colIdx < cols.length) {
+        const lastApt = cols[colIdx][cols[colIdx].length - 1];
+        const lastStart = getAptMinutes(lastApt);
+        const lastEnd = lastStart + (lastApt.duration || 60);
+        const overlaps = start < lastEnd && end > lastStart;
+        if (!overlaps) {
+          break;
+        }
+        colIdx++;
+      }
+
+      if (colIdx >= cols.length) {
+        cols.push([]);
+      }
+      cols[colIdx].push(apt);
+    });
+
+    const totalCols = cols.length;
+    cols.forEach((colApts, colIdx) => {
+      colApts.forEach((apt) => {
+        layoutItems.push({
+          apt,
+          left: (colIdx * 100) / totalCols,
+          width: 100 / totalCols,
+        });
+      });
+    });
+  });
+
+  return layoutItems;
+};
+
 export default function AppointmentCalendar({
   appointments,
   onSelectAppointment,
@@ -212,22 +288,24 @@ export default function AppointmentCalendar({
 
                   {/* Appointments */}
                   <div className="absolute inset-0 pointer-events-none">
-                    {dayAppointments.map((apt, idx) => (
+                    {layoutDayAppointments(dayAppointments).map(({ apt, left, width }) => (
                       <div
                         key={apt.id}
-                        className="absolute w-full left-0 px-1 pointer-events-auto"
+                        className="absolute px-1 pointer-events-auto"
                         style={{
                           top: `${getAppointmentPosition(apt)}px`,
+                          left: `${left}%`,
+                          width: `${width}%`,
+                          height: `${Math.max(38, ((apt.duration || 60) / 60) * 64)}px`,
                         }}
                       >
                         <button
                           onClick={() =>
                             onSelectAppointment && onSelectAppointment(apt)
                           }
-                          className={`w-full text-left p-2 rounded border-l-4 text-xs font-medium truncate transition hover:shadow-md ${statusColor[apt.status]} ${statusBgColor[apt.status]} border-l-4`}
+                          className={`w-full text-left p-2 rounded border-l-4 text-xs font-medium truncate transition hover:shadow-md ${statusColor[apt.status]} ${statusBgColor[apt.status]} border-l-4 h-full`}
                           style={{
                             borderLeftColor: statusBgColor[apt.status],
-                            marginTop: idx > 0 ? `${idx * 2}px` : "0", // Small offset for overlapping
                           }}
                           title={`${apt.patientName || "Patient"} - ${apt.time}`}
                         >

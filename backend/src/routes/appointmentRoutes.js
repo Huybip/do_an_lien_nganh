@@ -23,6 +23,7 @@ const createSchema = {
   body: Joi.object({
     doctorId: Joi.string().required(),
     serviceId: Joi.string().allow("", null),
+    serviceIds: Joi.array().items(Joi.string()).allow(null),
     serviceName: Joi.string().allow("", null),
     date: Joi.string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
@@ -31,6 +32,7 @@ const createSchema = {
       .valid("morning", "afternoon", "evening")
       .required(),
     notes: Joi.string().allow("", null),
+    patientId: Joi.string().allow("", null),
   }),
 };
 
@@ -40,9 +42,9 @@ router.get("/stats", auth, authorize("admin", "doctor"), getStats);
 // Available slots for booking
 router.get("/slots", auth, getAvailableSlots);
 
-// Patient routes
+// Patient & Admin routes
 router.get("/me", auth, authorize("patient"), getMine);
-router.post("/", auth, authorize("patient"), validate(createSchema), create);
+router.post("/", auth, authorize("patient", "admin"), validate(createSchema), create);
 
 // Shared (ownership enforced in controller)
 router.get("/:id", auth, getById);

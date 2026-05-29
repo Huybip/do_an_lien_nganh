@@ -93,6 +93,8 @@ export const doctorApi = {
       return { ...res, data: docs };
     }),
   getById: (id: string) => api.get(`/doctors/${id}`),
+  getMyProfile: () => api.get("/doctors/me"),
+  updateMyProfile: (data: object) => api.put("/doctors/me", data),
   create: (data: object) => api.post("/doctors", data),
   update: (id: string, data: object) => api.put(`/doctors/${id}`, data),
   delete: (id: string) => api.delete(`/doctors/${id}`),
@@ -148,6 +150,13 @@ export const shiftApi = {
       const data = Array.isArray(paginated?.data) ? paginated.data : (Array.isArray(paginated) ? paginated : []);
       return { ...res, data };
     }),
+  getUpcoming: () =>
+    api.get("/shifts/upcoming").then((res) => {
+      const data = res.data?.data || res.data || [];
+      return { ...res, data: Array.isArray(data) ? data : [] };
+    }),
+  getConfigs: () => api.get("/shifts/configs"),
+  updateConfigs: (configs: object) => api.put("/shifts/configs", { configs }),
   getByDoctor: (doctorId: string, date?: string) =>
     api.get(`/shifts/by-doctor/${doctorId}`, { params: date ? { date } : {} }),
   getAvailable: (date: string) =>
@@ -157,6 +166,17 @@ export const shiftApi = {
   update: (id: string, data: object) => api.put(`/shifts/${id}`, data),
   cancel: (id: string) => api.delete(`/shifts/${id}/cancel`),
   delete: (id: string) => api.delete(`/shifts/${id}`),
+};
+
+// ─── Days Off ───────────────────────────────────────────────────────────────
+export const dayOffApi = {
+  getAll: () =>
+    api.get("/days-off").then((res) => {
+      const data = res.data?.data || res.data || [];
+      return { ...res, data: Array.isArray(data) ? data : [] };
+    }),
+  create: (data: object) => api.post("/days-off", data),
+  delete: (id: string) => api.delete(`/days-off/${id}`),
 };
 
 // ─── Medical Records ────────────────────────────────────────────────────────

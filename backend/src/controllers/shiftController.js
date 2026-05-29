@@ -13,11 +13,29 @@ const resolveDoctorId = async (userId) => {
   return doc?._id || null;
 };
 
-// ── Shift type labels & time ranges ────────────────────────────────────────────
+// ── Shift type labels & time ranges (fallback defaults) ──────────────────────
 const SHIFT_CONFIG = {
   morning:   { label: "Ca sáng",    start: "08:00", end: "12:00", color: "#f59e0b" },
   afternoon: { label: "Ca chiều",   start: "13:00", end: "17:00", color: "#8b5cf6" },
   evening:   { label: "Ca tối",     start: "18:00", end: "21:00", color: "#0ea5e9" },
+};
+
+const resolveShiftConfig = async () => {
+  try {
+    const ShiftConfig = require("../models/ShiftConfig");
+    const configs = await ShiftConfig.find({});
+    const result = {
+      morning:   { label: "Ca sáng",    start: "08:00", end: "12:00" },
+      afternoon: { label: "Ca chiều",   start: "13:00", end: "17:00" },
+      evening:   { label: "Ca tối",     start: "18:00", end: "21:00" },
+    };
+    configs.forEach(c => {
+      result[c.shiftType] = { label: c.label, start: c.startTime, end: c.endTime };
+    });
+    return result;
+  } catch (err) {
+    return SHIFT_CONFIG;
+  }
 };
 
 // ── GET /api/shifts  [admin, doctor]
@@ -87,18 +105,19 @@ const getById = async (req, res) => {
   }
 };
 
-// ── POST /api/shifts  [doctor – register own shift]
+// ── POST /api/shifts  [doctor – register own shift, or admin]
 const create = async (req, res) => {
   try {
-    const { date, shiftType, startTime, endTime, maxPatients, notes } = req.body;
+    const { date, shiftType, startTime, endTime, maxPatients, notes, doctorId } = req.body;
 
+    const currentConfig = await resolveShiftConfig();
     // Validate shift type
-    if (!SHIFT_CONFIG[shiftType]) {
+    if (!currentConfig[shiftType]) {
       return sendError(res, 400, "Shift type must be morning, afternoon, or evening.");
     }
 
     // Default times if not provided
-    const cfg = SHIFT_CONFIG[shiftType];
+    const cfg = currentConfig[shiftType];
     const resolvedStart = startTime || cfg.start;
     const resolvedEnd   = endTime   || cfg.end;
 
@@ -108,11 +127,33 @@ const create = async (req, res) => {
       return sendError(res, 400, "Cannot register a shift for a past date.");
     }
 
-    // req.user._id = User ID. We need Doctor Model _id for the shift.
-    // Lookup the Doctor record to get the correct doctorId.
-    const doctor = await Doctor.findOne({ user: req.user._id });
+    // Resolve doctor record
+    let doctor;
+    if (req.user.role === "admin") {
+      if (!doctorId) {
+        return sendError(res, 400, "doctorId is required when admin registers a shift.");
+      }
+      doctor = await Doctor.findById(doctorId).populate("user");
+    } else {
+      doctor = await Doctor.findOne({ user: req.user._id }).populate("user");
+    }
+
     if (!doctor) {
       return sendError(res, 404, "Doctor profile not found.");
+    }
+
+    // Check DayOff
+    const DayOff = require("../models/DayOff");
+    const dayOff = await DayOff.findOne({
+      date,
+      $or: [{ doctor: null }, { doctor: doctor._id }],
+    });
+    if (dayOff) {
+      return sendError(
+        res,
+        400,
+        `Ngày ${date} là ngày nghỉ (${dayOff.description || "Lễ/Nghỉ phép"}). Không thể tạo ca trực.`
+      );
     }
 
     // Check duplicate: same doctor + same date + same shiftType
@@ -120,13 +161,13 @@ const create = async (req, res) => {
     if (existing) {
       return sendError(
         res, 409,
-        `Bạn đã đăng ký ca ${cfg.label} ngày ${date} rồi. Không thể đăng ký trùng.`
+        `Bác sĩ đã có lịch ca ${cfg.label} ngày ${date} rồi.`
       );
     }
 
     const shift = await Shift.create({
-      doctor:     req.user._id,  // User ID – used in Appointment.doctor queries
-      doctorId:   doctor._id,    // Doctor Model _id – matches doctorApi.getAll() output
+      doctor:     doctor.user._id,  // User ID – used in Appointment.doctor queries
+      doctorId:   doctor._id,       // Doctor Model _id – matches doctorApi.getAll() output
       doctorName: doctor.name,
       date,
       shiftType,
@@ -147,13 +188,13 @@ const create = async (req, res) => {
   }
 };
 
-// ── PUT /api/shifts/:id  [doctor – update own shift]
+// ── PUT /api/shifts/:id  [doctor – update own shift, or admin]
 const update = async (req, res) => {
   try {
     const shift = await Shift.findById(req.params.id);
     if (!shift) return sendError(res, 404, "Shift not found.");
 
-    if (shift.doctor.toString() !== req.user._id.toString()) {
+    if (req.user.role !== "admin" && shift.doctor.toString() !== req.user._id.toString()) {
       return sendError(res, 403, "Access denied. Not your shift.");
     }
 
@@ -161,25 +202,43 @@ const update = async (req, res) => {
       return sendError(res, 400, "Cannot update a cancelled shift.");
     }
 
-    // Check for duplicate on new date/shiftType combo (excluding self)
     const { date, shiftType, startTime, endTime, maxPatients, notes } = req.body;
+
+    // Check DayOff on new date
+    if (date) {
+      const DayOff = require("../models/DayOff");
+      const dayOff = await DayOff.findOne({
+        date,
+        $or: [{ doctor: null }, { doctor: shift.doctorId }],
+      });
+      if (dayOff) {
+        return sendError(
+          res,
+          400,
+          `Ngày ${date} là ngày nghỉ (${dayOff.description || "Lễ/Nghỉ phép"}). Không thể chuyển ca trực.`
+        );
+      }
+    }
+
+    const currentConfig = await resolveShiftConfig();
+
+    // Check for duplicate on new date/shiftType combo (excluding self)
     if (date || shiftType) {
       const newDate      = date      || shift.date;
       const newShiftType = shiftType || shift.shiftType;
       const duplicate = await Shift.findOne({
         _id:       { $ne: shift._id },
-        doctorId:  shift.doctorId,  // use the shift's already-correct doctorId
+        doctorId:  shift.doctorId,
         date:      newDate,
         shiftType: newShiftType,
       });
       if (duplicate) {
-        const cfg = SHIFT_CONFIG[newShiftType];
+        const cfg = currentConfig[newShiftType];
         return sendError(res, 409,
-          `Bạn đã có ca ${cfg?.label || newShiftType} ngày ${newDate} rồi.`);
+          `Bác sĩ đã có ca ${cfg?.label || newShiftType} ngày ${newDate} rồi.`);
       }
     }
 
-    const cfg = SHIFT_CONFIG[shiftType || shift.shiftType];
     if (date)              shift.date       = date;
     if (shiftType)         shift.shiftType  = shiftType;
     if (startTime)         shift.startTime  = startTime;
@@ -318,6 +377,79 @@ const getAvailableByDate = async (req, res) => {
   }
 };
 
+// GET /api/shifts/upcoming [auth: all]
+const getUpcoming = async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const shifts = await Shift.find({ date: { $gte: today }, status: "active" })
+      .populate("doctor", "name email specialization")
+      .sort({ date: 1, shiftType: 1 });
+
+    const result = await Promise.all(
+      shifts.map(async (s) => {
+        const booked = await Appointment.countDocuments({
+          doctor: s.doctor._id || s.doctor,
+          date: s.date,
+          shiftType: s.shiftType,
+          status: { $in: ["pending", "confirmed", "checked-in"] },
+        });
+        return {
+          ...s.toObject(),
+          booked,
+          remaining: Math.max(0, s.maxPatients - booked),
+          isFull: booked >= s.maxPatients,
+        };
+      })
+    );
+
+    return sendSuccess(res, 200, "Upcoming shifts retrieved", result);
+  } catch (err) {
+    return sendError(res, 500, err.message);
+  }
+};
+
+// GET /api/shifts/configs [auth: all]
+const getConfigs = async (req, res) => {
+  try {
+    const configs = await resolveShiftConfig();
+    return sendSuccess(res, 200, "Shift configurations retrieved", configs);
+  } catch (err) {
+    return sendError(res, 500, err.message);
+  }
+};
+
+// PUT /api/shifts/configs [admin only]
+const updateConfigs = async (req, res) => {
+  try {
+    const ShiftConfig = require("../models/ShiftConfig");
+    const { configs } = req.body;
+
+    if (!configs || typeof configs !== "object") {
+      return sendError(res, 400, "Invalid configs format.");
+    }
+
+    const saved = [];
+    for (const [type, data] of Object.entries(configs)) {
+      if (!["morning", "afternoon", "evening"].includes(type)) continue;
+      const { label, startTime, endTime } = data;
+      if (!label || !startTime || !endTime) {
+        return sendError(res, 400, `Missing required fields for shift type: ${type}`);
+      }
+
+      const updated = await ShiftConfig.findOneAndUpdate(
+        { shiftType: type },
+        { label, startTime, endTime },
+        { new: true, upsert: true }
+      );
+      saved.push(updated);
+    }
+
+    return sendSuccess(res, 200, "Shift configurations updated", saved);
+  } catch (err) {
+    return sendError(res, 500, err.message);
+  }
+};
+
 module.exports = {
   getAll,
   getMine,
@@ -328,5 +460,9 @@ module.exports = {
   remove,
   getByDoctor,
   getAvailableByDate,
+  getUpcoming,
+  getConfigs,
+  updateConfigs,
+  resolveShiftConfig,
   SHIFT_CONFIG,
 };

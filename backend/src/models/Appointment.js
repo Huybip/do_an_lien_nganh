@@ -19,6 +19,13 @@ const appointmentSchema = new mongoose.Schema(
       ref: "Service",
     },
     serviceName: { type: String, required: true },
+    services: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Service",
+      },
+    ],
+    serviceNames: [{ type: String }],
     date: {
       type: String,
       required: [true, "Appointment date is required"],

@@ -11,6 +11,9 @@ const {
   remove,
   getByDoctor,
   getAvailableByDate,
+  getUpcoming,
+  getConfigs,
+  updateConfigs,
 } = require("../controllers/shiftController");
 const { auth, authorize } = require("../middleware/auth");
 const validate = require("../middleware/validate");
@@ -32,6 +35,7 @@ const createSchema = {
       .allow("", null),
     maxPatients: Joi.number().min(1).max(20).allow("", null),
     notes: Joi.string().allow("", null),
+    doctorId: Joi.string().allow("", null),
   }),
 };
 
@@ -46,11 +50,18 @@ const updateSchema = {
   }),
 };
 
-// Doctor routes
+// Config routes
+router.get("/configs",  auth, getConfigs);
+router.put("/configs",  auth, authorize("admin"), updateConfigs);
+
+// Shared upcoming
+router.get("/upcoming", auth, getUpcoming);
+
+// Doctor & Admin routes
 router.get("/me",  auth, authorize("doctor"), getMine);
-router.post("/",    auth, authorize("doctor"), validate(createSchema), create);
-router.put("/:id", auth, authorize("doctor"), validate(updateSchema), update);
-router.delete("/:id/cancel", auth, authorize("doctor"), cancel);
+router.post("/",    auth, authorize("doctor", "admin"), validate(createSchema), create);
+router.put("/:id", auth, authorize("doctor", "admin"), validate(updateSchema), update);
+router.delete("/:id/cancel", auth, authorize("doctor", "admin"), cancel);
 
 // Admin routes
 router.get("/",      auth, authorize("admin"), getAll);

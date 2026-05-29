@@ -94,10 +94,10 @@ const getById = async (req, res) => {
   }
 };
 
-// POST /api/appointments  [patient]
+// POST /api/appointments  [patient, admin]
 const create = async (req, res) => {
   try {
-    const { doctorId, serviceId, date, shiftType, notes } = req.body;
+    const { doctorId, serviceId, serviceIds, date, shiftType, notes, patientId } = req.body;
 
     if (!shiftType || !["morning", "afternoon", "evening"].includes(shiftType)) {
       return res.status(400).json({ success: false, message: "Vui lòng chọn ca trực: sáng, chiều hoặc tối." });
@@ -114,6 +114,42 @@ const create = async (req, res) => {
 
     const userId = doctor.user._id;
 
+    // Resolve patient record
+    let patientUserId = req.user._id;
+    let patientName = req.user.name;
+
+    if (req.user.role === "admin") {
+      if (!patientId) {
+        return res.status(400).json({ success: false, message: "Vui lòng chọn bệnh nhân." });
+      }
+      const Patient = require("../models/Patient");
+      let patientRecord = await Patient.findById(patientId);
+      if (patientRecord) {
+        patientUserId = patientRecord.user;
+        patientName = patientRecord.name;
+      } else {
+        const user = await User.findById(patientId);
+        if (!user || user.role !== "patient") {
+          return res.status(404).json({ success: false, message: "Bệnh nhân không hợp lệ hoặc không tồn tại." });
+        }
+        patientUserId = user._id;
+        patientName = user.name;
+      }
+    }
+
+    // Check DayOff
+    const DayOff = require("../models/DayOff");
+    const dayOff = await DayOff.findOne({
+      date,
+      $or: [{ doctor: null }, { doctor: doctor._id }],
+    });
+    if (dayOff) {
+      return res.status(400).json({
+        success: false,
+        message: `Ngày ${date} là ngày nghỉ (${dayOff.description || "Lễ/Nghỉ phép"}). Không thể đặt lịch khám.`
+      });
+    }
+
     const shift = await Shift.findOne({ doctorId, date, shiftType, status: "active" });
     if (!shift) {
       return res.status(404).json({
@@ -124,7 +160,7 @@ const create = async (req, res) => {
 
     const existingBookings = await Appointment.countDocuments({
       doctor: userId, date, shiftType,
-      status: { $in: ["pending", "confirmed"] },
+      status: { $in: ["pending", "confirmed", "checked-in"] },
     });
     if (existingBookings >= shift.maxPatients) {
       return res.status(409).json({
@@ -134,35 +170,47 @@ const create = async (req, res) => {
     }
 
     const duplicate = await Appointment.findOne({
-      patient: req.user._id, doctor: userId, date, shiftType,
-      status: { $in: ["pending", "confirmed"] },
+      patient: patientUserId, doctor: userId, date, shiftType,
+      status: { $in: ["pending", "confirmed", "checked-in"] },
     });
     if (duplicate) {
-      return res.status(409).json({ success: false, message: "Bạn đã đặt lịch khám vào ca này rồi." });
+      return res.status(409).json({ success: false, message: "Bệnh nhân đã đặt lịch khám vào ca này rồi." });
     }
 
-    let service = null;
-    let serviceName = req.body.serviceName || "General Consultation";
+    // Handle multiple services
+    let selectedServiceIds = serviceIds || [];
+    if (serviceId && !selectedServiceIds.includes(serviceId)) {
+      selectedServiceIds.push(serviceId);
+    }
+
+    let resolvedServices = [];
+    let serviceNames = [];
     let fee = 0;
-    if (serviceId) {
-      service = await Service.findById(serviceId);
-      if (service) {
-        serviceName = service.name;
-        fee = service.price;
-      }
+    let duration = 30;
+
+    if (selectedServiceIds.length > 0) {
+      const servicesData = await Service.find({ _id: { $in: selectedServiceIds } });
+      resolvedServices = servicesData.map(s => s._id);
+      serviceNames = servicesData.map(s => s.name);
+      fee = servicesData.reduce((sum, s) => sum + s.price, 0);
+      duration = servicesData.reduce((sum, s) => sum + s.duration, 30);
+    } else {
+      serviceNames = [req.body.serviceName || "General Consultation"];
     }
 
     const appointment = await Appointment.create({
-      patient:     req.user._id,
-      patientName: req.user.name,
+      patient:     patientUserId,
+      patientName: patientName,
       doctor:      userId,
       doctorName:  doctor.name,
-      service:     serviceId || undefined,
-      serviceName,
+      service:     resolvedServices[0] || undefined,
+      serviceName: serviceNames.join(", "),
+      services:    resolvedServices,
+      serviceNames: serviceNames,
       date,
       shiftType,
       time:        shift.startTime,
-      duration:    service?.duration || 30,
+      duration:    duration,
       fee,
       notes,
     });
@@ -450,14 +498,19 @@ const complete = async (req, res) => {
       return sendError(res, 400, "Cannot complete a cancelled appointment.");
     }
 
-    // ── Auto-resolve fee from Service if not set ───────────────────────────────
+    // ── Auto-resolve fee from Services if not set ───────────────────────────────
     let fee = appointment.fee || 0;
-    if (appointment.service && fee === 0) {
-      const service = await Service.findById(appointment.service);
-      if (service && service.price > 0) {
-        fee = service.price;
-        appointment.fee = fee;
+    if (fee === 0) {
+      if (appointment.services && appointment.services.length > 0) {
+        const servicesData = await Service.find({ _id: { $in: appointment.services } });
+        fee = servicesData.reduce((sum, s) => sum + s.price, 0);
+      } else if (appointment.service) {
+        const service = await Service.findById(appointment.service);
+        if (service && service.price > 0) {
+          fee = service.price;
+        }
       }
+      appointment.fee = fee;
     }
 
     // ── Mark appointment completed ────────────────────────────────────────────
@@ -481,6 +534,19 @@ const complete = async (req, res) => {
       });
       const invoiceNumber = `INV-${year}${String(month).padStart(2, "0")}-${String(count + 1).padStart(4, "0")}`;
 
+      const servicesList = [];
+      if (appointment.services && appointment.services.length > 0) {
+        const servicesData = await Service.find({ _id: { $in: appointment.services } });
+        servicesData.forEach(s => {
+          servicesList.push({ name: s.name, price: s.price });
+        });
+      } else {
+        servicesList.push({
+          name: appointment.serviceName || "Dich vu kham",
+          price: fee,
+        });
+      }
+
       payment = await Payment.create({
         patient: appointment.patient,
         patientName: appointment.patientName,
@@ -490,12 +556,7 @@ const complete = async (req, res) => {
         method: "cash",
         status: "pending",
         description: `Thanh toan kham ${appointment.serviceName || "dich vu"} ngay ${appointment.date}`,
-        services: [
-          {
-            name: appointment.serviceName || "Dich vu kham",
-            price: fee,
-          },
-        ],
+        services: servicesList,
         discount: 0,
         tax: 0,
         notes: `Tu dong tao tu lich hen ${appointment.date} ${appointment.time}`,

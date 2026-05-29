@@ -92,6 +92,7 @@ const create = async (req, res) => {
       patientId,
       appointmentId,
       date,
+      type,
       chiefComplaint,
       diagnosis,
       treatment,
@@ -100,6 +101,7 @@ const create = async (req, res) => {
       teeth,
       vitalSigns,
       followUpDate,
+      doctorId,
     } = req.body;
 
     // Validate patient - try as Patient ID first, then as User ID
@@ -122,13 +124,38 @@ const create = async (req, res) => {
       userId = patientId;
     }
 
+    // Resolve doctor record
+    let doctorUserId = req.user._id;
+    let doctorName = req.user.name;
+
+    if (req.user.role === "admin") {
+      if (!doctorId) {
+        return sendError(res, 400, "doctorId is required when admin creates a medical record.");
+      }
+      const Doctor = require("../models/Doctor");
+      let doctorRecord = await Doctor.findById(doctorId).populate("user");
+      if (doctorRecord) {
+        doctorUserId = doctorRecord.user._id || doctorRecord.user;
+        doctorName = doctorRecord.name;
+      } else {
+        const userDoc = await User.findById(doctorId);
+        if (userDoc && userDoc.role === "doctor") {
+          doctorUserId = userDoc._id;
+          doctorName = userDoc.name;
+        } else {
+          return sendError(res, 404, "Doctor not found.");
+        }
+      }
+    }
+
     const record = await MedicalRecord.create({
       patient: userId,
       patientName,
-      doctor: req.user._id,
-      doctorName: req.user.name,
+      doctor: doctorUserId,
+      doctorName,
       appointment: appointmentId || undefined,
       date: date || new Date().toISOString().split("T")[0],
+      type: type || "examination",
       chiefComplaint,
       diagnosis,
       treatment,
