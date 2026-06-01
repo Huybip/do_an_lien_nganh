@@ -34,6 +34,7 @@ export interface Appointment {
     | "pending"
     | "confirmed"
     | "checked-in"
+    | "examining"
     | "completed"
     | "cancelled"
     | "approved"

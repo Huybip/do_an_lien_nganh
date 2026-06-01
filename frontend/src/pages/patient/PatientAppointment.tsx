@@ -3,7 +3,7 @@ import PatientSidebar from "../../components/layout/PatientSidebar";
 import Table from "../../components/ui/Table";
 import Modal from "../../components/ui/Modal";
 import AppointmentCalendar from "../../components/ui/AppointmentCalendar";
-import { api, unwrap, serviceApi, doctorApi, appointmentApi, shiftApi } from "../../services/api";
+import { api, unwrap, serviceApi, doctorApi, appointmentApi, shiftApi, dayOffApi } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
 import type { Appointment, Service, User } from "../../types";
 
@@ -219,7 +219,7 @@ export default function PatientAppointment() {
         )}
 
         {/* Dynamic Booking Flow Modal */}
-        <Modal open={showModal} onClose={() => setShowModal(false)} title="Đăng ký lịch khám theo ca trực bác sĩ">
+        <Modal open={showModal} onClose={() => setShowModal(false)} title="Đăng ký lịch khám theo ca trực bác sĩ" size="xl">
           <BookingFlow services={services || []} onClose={() => { setShowModal(false); refetch(); }} />
         </Modal>
       </div>
@@ -227,28 +227,39 @@ export default function PatientAppointment() {
   );
 }
 
-// ── Booking Flow Component with Shift card selector & service compiler ──────
+// ── Booking Flow Component with Splitscreen Monthly Calendar ─────────────────
 function BookingFlow({ services, onClose }: { services: Service[]; onClose: () => void }) {
   const [upcomingShifts, setUpcomingShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(false);
-  const [selectedShift, setSelectedShift] = useState<any | null>(null);
+  const [daysOff, setDaysOff] = useState<any[]>([]);
 
-  // Filters for shift browser
-  const [searchDoc, setSearchDoc] = useState("");
-  const [searchSpec, setSearchSpec] = useState("");
-
-  // Step 2 Booking details
+  // Form selections
+  const [form, setForm] = useState({
+    doctorId: "",
+    date: "",
+    shiftType: "",
+    notes: "",
+  });
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Monthly Calendar Navigation & Filter states
+  const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1)); // May 2026
+  const [filterMorning, setFilterMorning] = useState(true);
+  const [filterAfternoon, setFilterAfternoon] = useState(true);
+  const [filterEvening, setFilterEvening] = useState(true);
 
   useEffect(() => {
     const fetchUpcomingShifts = async () => {
       setShiftsLoading(true);
       try {
-        const res = await shiftApi.getUpcoming();
-        setUpcomingShifts(unwrap(res) || []);
+        const [shRes, doRes] = await Promise.all([
+          shiftApi.getUpcoming(),
+          dayOffApi.getAll(),
+        ]);
+        setUpcomingShifts(unwrap(shRes) || []);
+        setDaysOff(unwrap<any[]>(doRes?.data ?? doRes) || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -258,35 +269,28 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
     fetchUpcomingShifts();
   }, []);
 
-  // Filter logic
-  const filteredShifts = upcomingShifts.filter((s: any) => {
-    const nameMatch = s.doctorName?.toLowerCase().includes(searchDoc.toLowerCase()) || 
-                      s.doctor?.name?.toLowerCase().includes(searchDoc.toLowerCase());
-    const specMatch = !searchSpec || 
-                      s.doctor?.specialization?.toLowerCase() === searchSpec.toLowerCase();
-    return nameMatch && specMatch;
-  });
-
-  // Extract unique specializations for filter dropdown
-  const specializations = Array.from(new Set(
-    upcomingShifts.map((s: any) => s.doctor?.specialization).filter(Boolean)
-  ));
-
   const handleServiceToggle = (id: string) => {
-    setSelectedServiceIds(prev =>
-      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
     );
   };
 
-  const handleSelectShift = (shift: any) => {
-    setSelectedShift(shift);
+  const handleSelectShift = (s: any) => {
+    const docId = s.doctorId || s.doctor?._id || s.doctor;
+    setForm((prev) => ({
+      ...prev,
+      doctorId: docId,
+      date: s.date,
+      shiftType: s.shiftType,
+    }));
     setError("");
-    setSelectedServiceIds([]);
-    setNotes("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.doctorId) { setError("Vui lòng chọn bác sĩ từ lịch trực."); return; }
+    if (!form.date) { setError("Vui lòng chọn ngày khám từ lịch trực."); return; }
+    if (!form.shiftType) { setError("Vui lòng chọn ca khám từ lịch trực."); return; }
     if (selectedServiceIds.length === 0) {
       setError("Vui lòng chọn ít nhất một dịch vụ khám bệnh.");
       return;
@@ -295,11 +299,11 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
     setError("");
     try {
       await appointmentApi.create({
-        doctorId: selectedShift.doctorId || selectedShift.doctor?._id || selectedShift.doctor,
-        date: selectedShift.date,
-        shiftType: selectedShift.shiftType,
+        doctorId: form.doctorId,
+        date: form.date,
+        shiftType: form.shiftType,
         serviceIds: selectedServiceIds,
-        notes: notes,
+        notes: form.notes,
       });
       onClose();
     } catch (err: any) {
@@ -311,245 +315,350 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
     }
   };
 
-  const totalFee = services
-    .filter((s) => selectedServiceIds.includes(s._id))
-    .reduce((sum, s) => sum + s.price, 0);
+  // Month navigation
+  const prevMonth = () => {
+    setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+  };
+  const nextMonth = () => {
+    setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+  };
 
-  const totalDuration = services
-    .filter((s) => selectedServiceIds.includes(s._id))
-    .reduce((sum, s) => sum + s.duration, 0);
+  // Generate 42 calendar grid cells (Sunday starts)
+  const calendarCells = (() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startDayOfWeek = firstDay.getDay(); // 0-6
+    const calendarStart = new Date(firstDay);
+    calendarStart.setDate(firstDay.getDate() - startDayOfWeek);
 
-  // SCREEN 1: BROWSE UPCOMING SHIFTS
-  if (!selectedShift) {
-    return (
-      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-        <div>
-          <p className="text-sm text-slate-500">Lựa chọn bác sĩ và thời gian trực phù hợp để đặt lịch khám nhanh chóng.</p>
-        </div>
+    const cells = [];
+    for (let i = 0; i < 42; i++) {
+      cells.push(new Date(calendarStart));
+      calendarStart.setDate(calendarStart.getDate() + 1);
+    }
+    return cells;
+  })();
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-          <div className="flex-1">
-            <input
-              type="text"
-              className="input text-sm py-2"
-              placeholder="Tìm tên bác sĩ..."
-              value={searchDoc}
-              onChange={(e) => setSearchDoc(e.target.value)}
+  const selectedShiftDetails = upcomingShifts.find(
+    (s) =>
+      (s.doctorId === form.doctorId || s.doctor?._id === form.doctorId) &&
+      s.date === form.date &&
+      s.shiftType === form.shiftType
+  );
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 max-h-[80vh] overflow-y-auto pr-1">
+      {/* LEFT COLUMN: BOOKING FORM */}
+      <form onSubmit={handleSubmit} className="w-full lg:w-[38%] space-y-4 pr-1 border-r border-slate-100 flex flex-col justify-between">
+        <div className="space-y-4">
+          <h4 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+            Thông tin đặt lịch
+          </h4>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold animate-shake">
+              {error}
+            </div>
+          )}
+
+          {/* Date & Shift */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ngày khám *</label>
+              <input
+                type="text"
+                className="input bg-slate-50 text-slate-600 font-mono font-bold cursor-not-allowed"
+                value={form.date || "nn/mm/yyyy"}
+                readOnly
+                placeholder="nn/mm/yyyy"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ca khám *</label>
+              <input
+                type="text"
+                className="input bg-slate-50 text-slate-600 font-semibold cursor-not-allowed"
+                value={
+                  form.shiftType === "morning"
+                    ? "Ca sáng"
+                    : form.shiftType === "afternoon"
+                    ? "Ca chiều"
+                    : form.shiftType === "evening"
+                    ? "Ca tối"
+                    : "— Chọn ca —"
+                }
+                readOnly
+                placeholder="— Chọn ca —"
+              />
+            </div>
+          </div>
+
+          {/* Chosen Doctor Card / Select on calendar alert */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Bác sĩ *</label>
+            {selectedShiftDetails ? (
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow animate-scale-in">
+                  {selectedShiftDetails.doctorName?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold text-slate-800">Dr. {selectedShiftDetails.doctorName}</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase">{selectedShiftDetails.doctor?.specialization || "Nha khoa tổng quát"}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-amber-700 text-xs font-semibold flex items-center gap-2">
+                <span>👉</span>
+                <span>Chọn ca trực trên lịch bên phải</span>
+              </div>
+            )}
+          </div>
+
+          {/* Multiple Services Choice checkboxes */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block font-bold">Dịch vụ (Được chọn nhiều) *</label>
+            <div className="grid grid-cols-1 gap-1.5 bg-slate-50 p-3 rounded-xl border max-h-[140px] overflow-y-auto">
+              {services.map((s) => {
+                const isChecked = selectedServiceIds.includes(s._id);
+                return (
+                  <label key={s._id} className={`flex items-center gap-2 p-1.5 rounded-lg border cursor-pointer text-xs font-bold transition select-none ${isChecked ? "bg-emerald-50/50 border-emerald-300 text-emerald-800" : "bg-white border-slate-100 text-slate-700"}`}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleServiceToggle(s._id)}
+                      className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                    />
+                    <span className="flex-1 truncate text-[11px]">{s.name}</span>
+                    <span className="text-emerald-600 shrink-0 text-[11px]">{Number(s.price).toLocaleString("vi-VN")} ₫</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5 text-right font-bold">
+              Tổng cộng: <span className="text-emerald-600 font-extrabold text-sm">{services.filter(s => selectedServiceIds.includes(s._id)).reduce((sum, s) => sum + s.price, 0).toLocaleString("vi-VN")} ₫</span>
+            </p>
+          </div>
+
+          {/* Notes Textarea */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Triệu chứng / Ghi chú</label>
+            <textarea
+              className="input resize-none"
+              rows={2}
+              placeholder="Mô tả triệu chứng..."
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </div>
-          <div className="sm:w-48">
-            <select
-              className="input text-sm py-2"
-              value={searchSpec}
-              onChange={(e) => setSearchSpec(e.target.value)}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-4 border-t border-slate-50">
+          <button
+            type="submit"
+            disabled={submitting || selectedServiceIds.length === 0}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold text-sm hover:shadow-lg disabled:opacity-50"
+          >
+            {submitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Đang đặt...
+              </div>
+            ) : (
+              "Xác nhận đặt lịch"
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition"
+          >
+            Hủy
+          </button>
+        </div>
+      </form>
+
+      {/* RIGHT COLUMN: MONTHLY SHIFTS CALENDAR */}
+      <div className="w-full lg:w-[62%] flex flex-col justify-between space-y-4">
+        {/* Month picker and filter chips header */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pb-2">
+          {/* Month Switcher */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prevMonth}
+              className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-600 transition"
             >
-              <option value="">Tất cả chuyên khoa</option>
-              {specializations.map((spec: any) => (
-                <option key={spec} value={spec}>{spec}</option>
-              ))}
-            </select>
+              ‹
+            </button>
+            <span className="font-bold text-slate-800 text-sm px-2">
+              Tháng {calendarDate.getMonth() + 1} {calendarDate.getFullYear()}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-600 transition"
+            >
+              ›
+            </button>
+          </div>
+
+          {/* Shift filter pills */}
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setFilterMorning(!filterMorning)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+                filterMorning ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-slate-50 text-slate-400 border-slate-100"
+              }`}
+            >
+              🌅 Ca Sáng
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterAfternoon(!filterAfternoon)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+                filterAfternoon ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-400 border-slate-100"
+              }`}
+            >
+              🌤️ Ca Chiều
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterEvening(!filterEvening)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+                filterEvening ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-slate-50 text-slate-400 border-slate-100"
+              }`}
+            >
+              🌙 Ca Tối
+            </button>
           </div>
         </div>
 
-        {/* Shift list grid */}
-        {shiftsLoading ? (
-          <div className="flex justify-center items-center py-10">
-            <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin" />
+        {/* Monthly Calendar Grid */}
+        <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-inner flex-1">
+          {/* Weekdays header */}
+          <div className="grid grid-cols-7 bg-slate-50 text-center py-2 border-b border-slate-200">
+            {["CN", "T2", "T3", "T4", "T5", "T6", "T7"].map((w) => (
+              <span key={w} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                {w}
+              </span>
+            ))}
           </div>
-        ) : filteredShifts.length === 0 ? (
-          <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-6 text-center">
-            <p className="font-semibold text-amber-800 text-sm">Không tìm thấy ca trực nào phù hợp.</p>
-            <p className="text-xs text-amber-500 mt-1">Vui lòng thay đổi từ khóa tìm kiếm hoặc quay lại sau.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filteredShifts.map((s: any) => {
-              const cfg = SHIFT_CONFIG[s.shiftType as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
-              const isFull = s.remaining <= 0 || s.isFull;
 
-              return (
-                <div
-                  key={s.id || s._id}
-                  className={`card p-4 border border-slate-100 bg-white shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300 ${
-                    isFull ? "opacity-75" : ""
-                  }`}
-                >
-                  <div className="space-y-3">
-                    {/* Doctor Info */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow">
-                        {(s.doctorName || s.doctor?.name || "BS").charAt(0)}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-800 text-sm">Dr. {s.doctorName || s.doctor?.name}</h4>
-                        <p className="text-[11px] text-slate-400 font-semibold uppercase">{s.doctor?.specialization || "Nha khoa Tổng quát"}</p>
-                      </div>
-                    </div>
+          {/* Days grid */}
+          {shiftsLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 grid-rows-6 divide-x divide-y divide-slate-100">
+              {calendarCells.map((d, index) => {
+                const dayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                const dayShifts = upcomingShifts.filter((s: any) => s.date === dayStr);
+                const visibleShifts = dayShifts.filter((s: any) => {
+                  if (s.shiftType === "morning") return filterMorning;
+                  if (s.shiftType === "afternoon") return filterAfternoon;
+                  if (s.shiftType === "evening") return filterEvening;
+                  return true;
+                });
 
-                    <hr className="border-slate-100" />
+                const isCurrentMonth = d.getMonth() === calendarDate.getMonth();
+                const clinicDayOff = (daysOff || []).find((dOff: any) => dOff.date === dayStr && !dOff.doctor);
 
-                    {/* Shift specifics */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold bg-slate-50 px-2 py-1 rounded-lg">
-                        <span>📅</span>
-                        <span>{s.date}</span>
-                      </div>
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${cfg.bg} ${cfg.text}`}>
-                        {cfg.icon} {cfg.label}
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-[72px] p-1.5 flex flex-col justify-between ${
+                      isCurrentMonth ? (clinicDayOff ? "bg-rose-50/50" : "bg-white") : "bg-slate-50/50"
+                    }`}
+                  >
+                    {/* Day number */}
+                    <div className="text-right">
+                      <span className={`text-[10px] font-mono font-extrabold ${isCurrentMonth ? "text-slate-700" : "text-slate-300"}`}>
+                        {d.getDate()}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-500 font-medium">Khung giờ trực: <span className="font-mono font-bold text-slate-700">{s.startTime} – {s.endTime}</span></p>
+                    {/* Shifts list / Holiday banner */}
+                    <div className="space-y-1 mt-1">
+                      {clinicDayOff ? (
+                        <div className="px-1 py-1 rounded text-[7.5px] font-black text-rose-700 bg-rose-100/50 border border-rose-200/30 text-center truncate select-none" title={`Lịch nghỉ phòng khám: ${clinicDayOff.description}`}>
+                          🎉 Nghỉ: {clinicDayOff.description}
+                        </div>
+                      ) : (
+                        visibleShifts.map((s: any) => {
+                          const doctorShort = s.doctorName ? s.doctorName.trim().split(" ").pop() : "BS";
+                          const doctorDayOff = (daysOff || []).find((dOff: any) => dOff.date === dayStr && dOff.doctor && (dOff.doctor === s.doctorId || dOff.doctor._id === s.doctorId || dOff.doctor === s.doctor?._id || dOff.doctor?._id === s.doctor?._id));
+                          const isDoctorOff = !!doctorDayOff;
+                          const isFull = s.remaining <= 0 || s.isFull;
+                          const isSelected =
+                            form.doctorId === (s.doctorId || s.doctor?._id || s.doctor) &&
+                            form.date === s.date &&
+                            form.shiftType === s.shiftType;
+
+                          // Color config depending on shiftType or if doctor is off
+                          let colorClass = "";
+                          if (isDoctorOff) {
+                            colorClass = "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-70";
+                          } else if (isFull) {
+                            colorClass = "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through";
+                          } else if (isSelected) {
+                            colorClass = "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300 shadow";
+                          } else {
+                            if (s.shiftType === "morning") {
+                              colorClass = "bg-sky-50 text-sky-700 border-sky-100 hover:bg-sky-100 hover:border-sky-200";
+                            } else if (s.shiftType === "afternoon") {
+                              colorClass = "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 hover:border-amber-200";
+                            } else {
+                              colorClass = "bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 hover:border-purple-200";
+                            }
+                          }
+
+                          return (
+                            <div
+                              key={s.id || s._id}
+                              onClick={() => !isFull && !isDoctorOff && handleSelectShift(s)}
+                              className={`px-1 py-0.5 rounded text-[8px] font-black border flex items-center justify-between cursor-pointer select-none transition ${colorClass}`}
+                              title={isDoctorOff ? `Dr. ${s.doctorName} nghỉ phép: ${doctorDayOff.description}` : `Dr. ${s.doctorName} | Ca ${s.shiftType === "morning" ? "Sáng" : s.shiftType === "afternoon" ? "Chiều" : "Tối"} | Còn ${s.remaining}/${s.maxPatients} chỗ`}
+                            >
+                              <span className="truncate">{doctorShort}</span>
+                              <span className="font-semibold text-[7px] shrink-0 ml-0.5">
+                                {isDoctorOff ? "OFF" : `${s.booked}/${s.maxPatients}`}
+                              </span>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-
-                  {/* Booking state */}
-                  <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-50">
-                    <span className={`text-xs font-bold ${isFull ? "text-red-500" : "text-emerald-600"}`}>
-                      {isFull ? "Đã đầy chỗ" : `Còn ${s.remaining}/${s.maxPatients} chỗ`}
-                    </span>
-                    <button
-                      onClick={() => handleSelectShift(s)}
-                      disabled={isFull}
-                      className={`px-4 py-2 text-xs font-bold rounded-xl shadow-sm transition-all ${
-                        isFull
-                          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                          : "text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 hover:shadow"
-                      }`}
-                    >
-                      Đăng ký khám
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // SCREEN 2: SELECT SERVICES & SUBMIT
-  const selectedCfg = SHIFT_CONFIG[selectedShift.shiftType as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-      {error && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 font-semibold">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-          {error}
-        </div>
-      )}
-
-      {/* Selected Shift Information Banner */}
-      <div className="bg-gradient-to-r from-sky-50/50 to-blue-50/50 border border-sky-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-base font-black shadow-md">
-            {(selectedShift.doctorName || selectedShift.doctor?.name || "BS").charAt(0)}
-          </div>
-          <div>
-            <h4 className="font-bold text-slate-800">Dr. {selectedShift.doctorName || selectedShift.doctor?.name}</h4>
-            <p className="text-xs text-slate-400 font-semibold uppercase">{selectedShift.doctor?.specialization || "Nha khoa Tổng quát"}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono font-bold bg-white text-slate-600 px-2.5 py-1 rounded-lg border border-slate-100">
-            {selectedShift.date}
-          </span>
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${selectedCfg.bg} ${selectedCfg.text}`}>
-            {selectedCfg.icon} {selectedCfg.label} ({selectedShift.startTime}–{selectedShift.endTime})
-          </span>
-        </div>
-      </div>
-
-      {/* Multiple Services Choice (Checkboxes) */}
-      <div className="space-y-2.5">
-        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Chọn dịch vụ khám (Được chọn nhiều)</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
-          {services.map((s) => {
-            const isChecked = selectedServiceIds.includes(s._id);
-            return (
-              <label
-                key={s._id}
-                className={`relative flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                  isChecked
-                    ? "border-emerald-500 bg-emerald-50/30"
-                    : "border-slate-100 hover:border-slate-200 bg-white"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => handleServiceToggle(s._id)}
-                  className="w-4.5 h-4.5 accent-emerald-500 rounded border-slate-300"
-                />
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-700">{s.name}</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Thời gian: {s.duration || 30} phút</p>
-                </div>
-                <span className={`text-xs font-extrabold ${isChecked ? "text-emerald-700" : "text-slate-600"}`}>
-                  {Number(s.price).toLocaleString("vi-VN")} ₫
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Notes Textarea */}
-      <div>
-        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ghi chú triệu chứng / yêu cầu</label>
-        <textarea
-          className="input min-h-[70px] text-sm"
-          placeholder="Ví dụ: Đau răng hàm dưới bên trái, muốn nhổ răng khôn..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </div>
-
-      {/* Fee & Duration Summary */}
-      {selectedServiceIds.length > 0 && (
-        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex justify-between items-center flex-wrap gap-2">
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ước tính thời lượng</p>
-            <p className="text-sm font-semibold text-slate-700">⏱️ {totalDuration} phút</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng phí thanh toán</p>
-            <p className="text-base font-extrabold text-emerald-600">{totalFee.toLocaleString("vi-VN")} ₫</p>
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => setSelectedShift(null)}
-          className="px-5 py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-slate-200 transition"
-        >
-          Quay lại
-        </button>
-
-        <button
-          type="submit"
-          disabled={submitting || selectedServiceIds.length === 0}
-          className="flex-1 px-5 py-3 text-white font-bold rounded-xl text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: "linear-gradient(135deg, #0ea5e9, #14b8a6)" }}
-        >
-          {submitting ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Đang đăng ký...
+                );
+              })}
             </div>
-          ) : (
-            "Xác nhận đăng ký khám"
           )}
-        </button>
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[10px]">
+          <div className="flex gap-3">
+            <span className="flex items-center gap-1 text-slate-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              Có thể đặt
+            </span>
+            <span className="flex items-center gap-1 text-slate-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              Đang chọn
+            </span>
+            <span className="flex items-center gap-1 text-slate-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+              Đã đầy
+            </span>
+          </div>
+          <span className="text-slate-400 font-semibold text-right">
+            Nhấp vào ca trực để điền form đặt lịch nhanh chóng
+          </span>
+        </div>
       </div>
-    </form>
+    </div>
   );
 }

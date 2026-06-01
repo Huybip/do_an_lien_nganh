@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DoctorSidebar from "../../components/layout/DoctorSidebar";
 import Table from "../../components/ui/Table";
 import Modal from "../../components/ui/Modal";
 import AppointmentCalendar from "../../components/ui/AppointmentCalendar";
-import { appointmentApi, recordApi, paymentApi } from "../../services/api";
+import { appointmentApi, recordApi, paymentApi, dayOffApi, unwrap } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../hooks/useToast";
 import type { Appointment } from "../../types";
@@ -12,6 +12,7 @@ const statusColor: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700",
   confirmed: "bg-violet-50 text-violet-700",
   "checked-in": "bg-sky-50 text-sky-700 border-sky-200",
+  examining: "bg-indigo-50 text-indigo-700 border-indigo-200",
   completed: "bg-emerald-50 text-emerald-700",
   cancelled: "bg-red-50 text-red-700",
 };
@@ -36,6 +37,14 @@ export default function DoctorAppointments() {
   const [filter, setFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
   const [viewType, setViewType] = useState<"calendar" | "table">("calendar");
+  const [daysOff, setDaysOff] = useState<any[]>([]);
+
+  useEffect(() => {
+    dayOffApi.getAll().then(res => {
+      const list = unwrap<any[]>(res?.data ?? res) || [];
+      setDaysOff(list);
+    }).catch(err => console.error("Error loading day-offs:", err));
+  }, []);
 
   // Complete + QR modal state
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -158,19 +167,17 @@ export default function DoctorAppointments() {
       });
 
       // 2. Complete appointment & generate cash payment
-      const res = await appointmentApi.complete(selected.id, {
+      await appointmentApi.complete(selected.id, {
         notes: examForm.notes || examForm.diagnosis,
         fee: Number(examForm.fee)
       });
-      const result = res.data?.data;
       
       // Close exam modal
       setShowExamModal(false);
       
-      // 3. Show cash payment checkout invoice modal
-      setCompleteResult(result);
+      // 3. Simple success toast
       refetch();
-      toast.success("Đã hoàn thành khám và tạo hồ sơ bệnh án thành công!");
+      toast.success("Đã hoàn thành ca khám và lập hồ sơ bệnh án thành công! Thông tin thanh toán đã chuyển đến quầy lễ tân.");
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Không thể lưu thông tin khám bệnh.");
     } finally {
@@ -252,9 +259,20 @@ export default function DoctorAppointments() {
           {a.status === "pending" && "⏳"}
           {a.status === "confirmed" && "✓"}
           {a.status === "checked-in" && "🩺"}
+          {a.status === "examining" && "🥼"}
           {a.status === "completed" && "✅"}
           {a.status === "cancelled" && "✕"}
-          {a.status === "pending" ? "Chờ xác nhận" : a.status === "confirmed" ? "Đã duyệt" : a.status === "checked-in" ? "Chờ khám" : a.status === "completed" ? "Hoàn thành" : "Đã hủy"}
+          {a.status === "pending"
+            ? "Chờ xác nhận"
+            : a.status === "confirmed"
+            ? "Đã duyệt"
+            : a.status === "checked-in"
+            ? "Chờ khám"
+            : a.status === "examining"
+            ? "Đang khám"
+            : a.status === "completed"
+            ? "Hoàn thành"
+            : "Đã hủy"}
         </span>
       ),
     },
@@ -296,11 +314,32 @@ export default function DoctorAppointments() {
 
           {a.status === "checked-in" && (
             <button
+              onClick={async () => {
+                try {
+                  setActionLoading(true);
+                  await appointmentApi.update(a.id, { status: "examining" });
+                  toast.success("Bắt đầu khám bệnh nhân thành công!");
+                  refetch();
+                } catch {
+                  toast.error("Không thể bắt đầu khám.");
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all active:scale-95"
+              disabled={actionLoading}
+            >
+              🩺 Vào khám
+            </button>
+          )}
+
+          {a.status === "examining" && (
+            <button
               onClick={() => handleOpenExam(a)}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition-all active:scale-95 animate-pulse"
               disabled={actionLoading}
             >
-              🩺 Khám bệnh
+              📋 Khám xong
             </button>
           )}
         </div>
@@ -447,14 +486,27 @@ export default function DoctorAppointments() {
 
             {viewType === "calendar" ? (
               <div className="rounded-xl overflow-hidden">
-                <AppointmentCalendar
-                  appointments={appointments || []}
-                  onSelectAppointment={(apt) => {
-                    setSelected(apt);
-                    setShowModal(true);
-                  }}
-                  loading={loading}
-                />
+                {(() => {
+                  const userStr = localStorage.getItem("user");
+                  const currentUser = userStr ? JSON.parse(userStr) : null;
+                  const currentDoctorId = currentUser?._id || currentUser?.id;
+                  const doctorCalendarDaysOff = daysOff.filter((d: any) => {
+                    if (!d.doctor) return true;
+                    const docId = typeof d.doctor === "object" ? d.doctor._id : d.doctor;
+                    return docId === currentDoctorId;
+                  });
+                  return (
+                    <AppointmentCalendar
+                      appointments={appointments || []}
+                      onSelectAppointment={(apt) => {
+                        setSelected(apt);
+                        setShowModal(true);
+                      }}
+                      loading={loading}
+                      daysOff={doctorCalendarDaysOff}
+                    />
+                  );
+                })()}
               </div>
             ) : (
               <div className="rounded-xl overflow-hidden">
@@ -566,6 +618,29 @@ export default function DoctorAppointments() {
 
                 {selected.status === "checked-in" && (
                   <button
+                    onClick={async () => {
+                      try {
+                        setActionLoading(true);
+                        await appointmentApi.update(selected.id, { status: "examining" });
+                        toast.success("Bắt đầu khám bệnh nhân thành công!");
+                        setShowModal(false);
+                        refetch();
+                      } catch {
+                        toast.error("Không thể bắt đầu khám.");
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }}
+                    className="flex-1 min-w-fit px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:shadow-lg active:scale-95"
+                    style={{ background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)" }}
+                    disabled={actionLoading}
+                  >
+                    🩺 Vào khám
+                  </button>
+                )}
+
+                {selected.status === "examining" && (
+                  <button
                     onClick={() => {
                       handleOpenExam(selected);
                       setShowModal(false);
@@ -574,7 +649,7 @@ export default function DoctorAppointments() {
                     style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)" }}
                     disabled={actionLoading}
                   >
-                    🩺 Khám bệnh &amp; Lập hồ sơ
+                    📋 Khám xong &amp; Lập hồ sơ
                   </button>
                 )}
               </div>
@@ -730,15 +805,7 @@ export default function DoctorAppointments() {
           )}
         </Modal>
 
-        {/* Cash Checkout Result Modal */}
-        {completeResult?.payment && (
-          <CashCheckoutModal
-            payment={completeResult.payment}
-            appointment={completeResult.appointment}
-            onClose={() => { setCompleteResult(null); }}
-            onSuccess={() => { setCompleteResult(null); refetch(); }}
-          />
-        )}
+        {/* Cash Checkout Modal removed - payments are processed by admin */}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void
   title: string
   children: ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export default function Modal({ open, onClose, title, children, size = 'md' }: Props) {
@@ -18,7 +18,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: P
 
   if (!open) return null
 
-  const sizeClasses = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl' }
+  const sizeClasses = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-5xl' }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -5,6 +5,7 @@ interface Props {
   appointments: Appointment[];
   onSelectAppointment?: (appointment: Appointment) => void;
   loading?: boolean;
+  daysOff?: any[];
 }
 
 const statusColor: Record<string, string> = {
@@ -108,6 +109,7 @@ export default function AppointmentCalendar({
   appointments,
   onSelectAppointment,
   loading,
+  daysOff,
 }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -270,6 +272,7 @@ export default function AppointmentCalendar({
               const dayKey = toLocalISODate(day);
               const dayAppointments = appointmentsByDay[dayKey] || [];
               const isTodayColumn = isToday(day);
+              const dayOff = (daysOff || []).find((dOff: any) => dOff.date === dayKey);
 
               return (
                 <div
@@ -278,6 +281,17 @@ export default function AppointmentCalendar({
                     isTodayColumn ? "bg-dental-50" : "bg-white"
                   }`}
                 >
+                  {dayOff && (
+                    <div className="absolute inset-0 bg-rose-50/85 backdrop-blur-[1.5px] flex flex-col items-center justify-center p-3 border-l border-r border-rose-300 text-center z-10 select-none pointer-events-auto shadow-inner">
+                      <span className="text-xl mb-1.5 animate-bounce">🏖️</span>
+                      <span className="text-[10px] font-black text-rose-850 uppercase tracking-wider">
+                        {dayOff.doctor ? "Bác sĩ nghỉ phép" : "Phòng khám nghỉ lễ"}
+                      </span>
+                      <span className="text-[9px] font-extrabold text-rose-600 mt-1 max-w-[90%] break-words">
+                        {dayOff.description}
+                      </span>
+                    </div>
+                  )}
                   {/* Hour Dividers */}
                   {hours.map((hour) => (
                     <div

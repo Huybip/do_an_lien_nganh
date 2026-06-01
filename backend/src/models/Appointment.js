@@ -52,6 +52,7 @@ const appointmentSchema = new mongoose.Schema(
         "rejected",
         "confirmed",
         "checked-in",
+        "examining",
         "completed",
         "cancelled",
         "no-show",
