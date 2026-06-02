@@ -508,7 +508,7 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
             <button
               type="button"
               onClick={() => setFilterMorning(!filterMorning)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition ${
                 filterMorning ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-slate-50 text-slate-400 border-slate-100"
               }`}
             >
@@ -517,7 +517,7 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
             <button
               type="button"
               onClick={() => setFilterAfternoon(!filterAfternoon)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition ${
                 filterAfternoon ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-400 border-slate-100"
               }`}
             >
@@ -526,7 +526,7 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
             <button
               type="button"
               onClick={() => setFilterEvening(!filterEvening)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition ${
                 filterEvening ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-slate-50 text-slate-400 border-slate-100"
               }`}
             >
@@ -538,9 +538,9 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
         {/* Monthly Calendar Grid */}
         <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-inner flex-1">
           {/* Weekdays header */}
-          <div className="grid grid-cols-7 bg-slate-50 text-center py-2 border-b border-slate-200">
+          <div className="grid grid-cols-7 bg-slate-50 text-center py-2.5 border-b border-slate-200">
             {["CN", "T2", "T3", "T4", "T5", "T6", "T7"].map((w) => (
-              <span key={w} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+              <span key={w} className="text-xs font-black text-slate-500 uppercase tracking-wide">
                 {w}
               </span>
             ))}
@@ -569,21 +569,21 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
                 return (
                   <div
                     key={index}
-                    className={`min-h-[72px] p-1.5 flex flex-col justify-between ${
+                    className={`min-h-[96px] p-2 flex flex-col justify-between transition-colors ${
                       isCurrentMonth ? (clinicDayOff ? "bg-rose-50/50" : "bg-white") : "bg-slate-50/50"
                     }`}
                   >
                     {/* Day number */}
-                    <div className="text-right">
-                      <span className={`text-[10px] font-mono font-extrabold ${isCurrentMonth ? "text-slate-700" : "text-slate-300"}`}>
+                    <div className="text-right mb-1">
+                      <span className={`text-[11px] font-mono font-black ${isCurrentMonth ? "text-slate-700" : "text-slate-350"}`}>
                         {d.getDate()}
                       </span>
                     </div>
 
                     {/* Shifts list / Holiday banner */}
-                    <div className="space-y-1 mt-1">
+                    <div className="space-y-1.5 mt-0.5">
                       {clinicDayOff ? (
-                        <div className="px-1 py-1 rounded text-[7.5px] font-black text-rose-700 bg-rose-100/50 border border-rose-200/30 text-center truncate select-none" title={`Lịch nghỉ phòng khám: ${clinicDayOff.description}`}>
+                        <div className="px-2 py-1.5 rounded-lg text-[9px] font-black text-rose-700 bg-rose-100/50 border border-rose-200/30 text-center truncate select-none animate-pulse" title={`Lịch nghỉ phòng khám: ${clinicDayOff.description}`}>
                           🎉 Nghỉ: {clinicDayOff.description}
                         </div>
                       ) : (
@@ -600,18 +600,18 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
                           // Color config depending on shiftType or if doctor is off
                           let colorClass = "";
                           if (isDoctorOff) {
-                            colorClass = "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-70";
+                            colorClass = "bg-slate-50 text-slate-450 border-slate-200 cursor-not-allowed line-through opacity-70";
                           } else if (isFull) {
-                            colorClass = "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through";
+                            colorClass = "bg-slate-100 text-slate-450 border-slate-200 cursor-not-allowed line-through";
                           } else if (isSelected) {
-                            colorClass = "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300 shadow";
+                             colorClass = "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300 shadow-md font-bold scale-[1.03]";
                           } else {
                             if (s.shiftType === "morning") {
-                              colorClass = "bg-sky-50 text-sky-700 border-sky-100 hover:bg-sky-100 hover:border-sky-200";
+                              colorClass = "bg-sky-50 text-sky-700 border-sky-100 hover:bg-sky-100 hover:border-sky-200 hover:scale-[1.02]";
                             } else if (s.shiftType === "afternoon") {
-                              colorClass = "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 hover:border-amber-200";
+                              colorClass = "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 hover:border-amber-200 hover:scale-[1.02]";
                             } else {
-                              colorClass = "bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 hover:border-purple-200";
+                              colorClass = "bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 hover:border-purple-200 hover:scale-[1.02]";
                             }
                           }
 
@@ -619,11 +619,11 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
                             <div
                               key={s.id || s._id}
                               onClick={() => !isFull && !isDoctorOff && handleSelectShift(s)}
-                              className={`px-1 py-0.5 rounded text-[8px] font-black border flex items-center justify-between cursor-pointer select-none transition ${colorClass}`}
+                              className={`px-2 py-1 rounded-md text-[10px] font-black border flex items-center justify-between cursor-pointer select-none transition-all duration-150 ${colorClass}`}
                               title={isDoctorOff ? `Dr. ${s.doctorName} nghỉ phép: ${doctorDayOff.description}` : `Dr. ${s.doctorName} | Ca ${s.shiftType === "morning" ? "Sáng" : s.shiftType === "afternoon" ? "Chiều" : "Tối"} | Còn ${s.remaining}/${s.maxPatients} chỗ`}
                             >
                               <span className="truncate">{doctorShort}</span>
-                              <span className="font-semibold text-[7px] shrink-0 ml-0.5">
+                              <span className="font-extrabold text-[9px] shrink-0 ml-1">
                                 {isDoctorOff ? "OFF" : `${s.booked}/${s.maxPatients}`}
                               </span>
                             </div>
@@ -639,18 +639,18 @@ function BookingFlow({ services, onClose }: { services: Service[]; onClose: () =
         </div>
 
         {/* Legend */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[10px]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs font-medium">
           <div className="flex gap-3">
-            <span className="flex items-center gap-1 text-slate-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            <span className="flex items-center gap-1.5 text-slate-600">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
               Có thể đặt
             </span>
-            <span className="flex items-center gap-1 text-slate-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+            <span className="flex items-center gap-1.5 text-slate-600">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
               Đang chọn
             </span>
-            <span className="flex items-center gap-1 text-slate-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+            <span className="flex items-center gap-1.5 text-slate-600">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
               Đã đầy
             </span>
           </div>
