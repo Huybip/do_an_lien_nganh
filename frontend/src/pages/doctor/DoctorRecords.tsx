@@ -60,6 +60,7 @@ export default function DoctorRecords() {
                 { id: "examination", label: "🩺 Khám" },
                 { id: "treatment", label: "💊 Điều trị" },
                 { id: "surgery", label: "🏥 Phẫu thuật" },
+                { id: "checkup", label: "✅ Kiểm tra" },
               ].map((f) => {
                 const isActive = filter === f.id;
                 return (
@@ -259,16 +260,37 @@ export default function DoctorRecords() {
               </div>
 
               <div className="space-y-4">
-                {/* Patient info */}
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7c3aed15, #6d28d915)" }}>
-                    <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Patient info */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7c3aed15, #6d28d915)" }}>
+                      <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bệnh nhân</p>
+                      <p className="text-sm font-semibold text-slate-700">{selected.patientName}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bệnh nhân</p>
-                    <p className="text-sm font-semibold text-slate-700">{selected.patientName}</p>
+                  {/* Type info */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50">
+                      <span className="text-lg">
+                        {selected.type === "examination" ? "🩺" :
+                         selected.type === "treatment" ? "💊" :
+                         selected.type === "surgery" ? "🏥" : "✅"}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hình thức</p>
+                      <p className="text-sm font-semibold text-slate-700">
+                        {selected.type === "examination" ? "Khám bệnh" :
+                         selected.type === "treatment" ? "Điều trị" :
+                         selected.type === "surgery" ? "Phẫu thuật" :
+                         selected.type === "checkup" ? "Kiểm tra định kỳ" : "Chưa xác định"}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -334,6 +356,7 @@ function RecordForm({ onClose }: { onClose: () => void }) {
     prescription: "",
     notes: "",
     date: new Date().toISOString().split("T")[0],
+    type: "examination",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -409,6 +432,21 @@ function RecordForm({ onClose }: { onClose: () => void }) {
             onChange={(e) => setForm({ ...form, date: e.target.value })}
             style={{ background: "#fafafa" }}
           />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Loại hồ sơ</label>
+          <select
+            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition"
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value })}
+            required
+            style={{ background: "#fafafa" }}
+          >
+            <option value="examination">🩺 Khám bệnh</option>
+            <option value="treatment">💊 Điều trị</option>
+            <option value="surgery">🏥 Phẫu thuật</option>
+            <option value="checkup">✅ Kiểm tra định kỳ</option>
+          </select>
         </div>
       </div>
 

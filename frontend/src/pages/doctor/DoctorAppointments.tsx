@@ -58,7 +58,8 @@ export default function DoctorAppointments() {
     treatment: "",
     prescription: "",
     fee: 0,
-    notes: ""
+    notes: "",
+    type: "examination"
   });
 
   const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
@@ -145,7 +146,8 @@ export default function DoctorAppointments() {
       treatment: "",
       prescription: "",
       fee: apt.fee || serviceFee || 0,
-      notes: ""
+      notes: "",
+      type: "examination"
     });
     setShowExamModal(true);
   };
@@ -163,7 +165,8 @@ export default function DoctorAppointments() {
         prescription: examForm.prescription,
         notes: examForm.notes,
         date: selected.date,
-        appointmentId: selected.id
+        appointmentId: selected.id,
+        type: examForm.type
       });
 
       // 2. Complete appointment & generate cash payment
@@ -762,7 +765,20 @@ export default function DoctorAppointments() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Loại hồ sơ bệnh án</label>
+                  <select
+                    value={examForm.type}
+                    onChange={(e) => setExamForm({ ...examForm, type: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 focus:border-violet-500 focus:outline-none rounded-xl text-sm"
+                  >
+                    <option value="examination">🩺 Khám bệnh</option>
+                    <option value="treatment">💊 Điều trị</option>
+                    <option value="surgery">🏥 Phẫu thuật</option>
+                    <option value="checkup">✅ Kiểm tra định kỳ</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Chi phí khám &amp; Dịch vụ (VNĐ)</label>
                   <input
