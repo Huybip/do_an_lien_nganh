@@ -50,7 +50,9 @@ BASE_URL = "http://localhost:5000/api"
 
 ADMIN_CREDENTIALS = {"email": "admin@vinamec.vn", "password": "admin123"}
 DOCTOR_CREDENTIALS = {"email": "doctor@vinamec.vn", "password": "doctor123"}
+DOCTOR_CREDENTIALS_KHAC = {"email": "huytranhh3@gmail.com", "password": "Huyhaha55"}
 PATIENT_CREDENTIALS = {"email": "patient@vinamec.vn", "password": "patient123"}
+
 
 # Biến toàn cục chia sẻ dữ liệu động giữa các Test Cases
 shared_data = {
@@ -65,7 +67,11 @@ shared_data = {
     "shift_id": None,              # Ca trực ID
     "appointment_id": None,        # Lịch hẹn chính ID
     "temp_appointment_id": None,   # Lịch hẹn phụ
-    "tomorrow_date": None          # Ngày mai (để tạo ca trực & lịch hẹn khám)
+    "tomorrow_date": None,         # Ngày mai (để tạo ca trực & lịch hẹn khám)
+    "day_off_id": None,            # Ngày nghỉ phép ID
+    "conversation_id": None,       # Hội thoại ID
+    "uploaded_image_id": None,     # ID ảnh tải lên
+    "payment_id": None             # Hóa đơn thanh toán ID
 }
 
 from datetime import timedelta
@@ -305,6 +311,294 @@ def update_dental_score():
     if success:
         return True, "Bác sĩ cập nhật bảng điểm răng miệng thành công."
     return False, "Failed to update score"
+
+# --------------------------------------------------------------------------
+# BỔ SUNG CÁC HÀM NGHIỆP VỤ CHO CÁC CHỨC NĂNG MỚI
+# --------------------------------------------------------------------------
+def save_day_off():
+    payload = {
+        "date": shared_data["tomorrow_date"],
+        "description": "Bác sĩ Tú xin nghỉ phép đột xuất",
+        "doctorId": shared_data["doctor_user_id"]
+    }
+    success, res = run_api_step("POST", "/days-off", payload=payload, headers=get_headers("admin"), expected_status=201)
+    if success and res and res.get("success") and res.get("data"):
+        shared_data["day_off_id"] = res["data"]["_id"]
+        print(f"    [Dynamic Data] Day off created successfully. ID: {shared_data['day_off_id']}")
+        return True, "Admin đăng ký lịch nghỉ phép thành công cho bác sĩ."
+    return False, "Failed to register day-off"
+
+def delete_day_off():
+    if not shared_data.get("day_off_id"):
+        return True, "Bỏ qua (Chưa tạo lịch nghỉ phép)."
+    endpoint = f"/days-off/{shared_data['day_off_id']}"
+    success, res = run_api_step("DELETE", endpoint, headers=get_headers("admin"), expected_status=200)
+    if success:
+        return True, "Admin xóa lịch nghỉ phép thành công."
+    return False, "Failed to delete day-off"
+
+def find_or_create_conversation():
+    payload = {
+        "otherUserId": shared_data["doctor_user_id"]
+    }
+    success, res = run_api_step("POST", "/conversations/find-or-create", payload=payload, headers=get_headers("patient"), expected_status=200)
+    if success and res and res.get("success") and res.get("data"):
+        shared_data["conversation_id"] = res["data"]["id"]
+        print(f"    [Dynamic Data] Conversation resolved. ID: {shared_data['conversation_id']}")
+        return True, "Bệnh nhân bắt đầu cuộc hội thoại chat với bác sĩ thành công."
+    return False, "Failed to find or create conversation"
+
+def patient_send_message():
+    if not shared_data.get("conversation_id"):
+        return False, "No conversation ID"
+    endpoint = f"/conversations/{shared_data['conversation_id']}/messages"
+    payload = {
+        "content": "Chào bác sĩ, răng của tôi bị ê buốt nhẹ sau khi uống nước đá.",
+        "type": "text"
+    }
+    success, res = run_api_step("POST", endpoint, payload=payload, headers=get_headers("patient"), expected_status=201)
+    if success:
+        return True, "Bệnh nhân gửi tin nhắn cho bác sĩ thành công."
+    return False, "Failed to send message"
+
+def doctor_send_message():
+    if not shared_data.get("conversation_id"):
+        return False, "No conversation ID"
+    endpoint = f"/conversations/{shared_data['conversation_id']}/messages"
+    payload = {
+        "content": "Chào bạn, ê buốt răng có thể do mòn men răng. Bạn hạn chế đồ quá lạnh và súc miệng bằng nước muối nhé.",
+        "type": "text"
+    }
+    success, res = run_api_step("POST", endpoint, payload=payload, headers=get_headers("doctor"), expected_status=201)
+    if success:
+        return True, "Bác sĩ phản hồi tin nhắn thành công."
+    return False, "Failed to send message by doctor"
+
+def upload_patient_image():
+    import io
+    url = f"{BASE_URL}/images/upload"
+    headers = get_headers("patient")
+    print(f" -> POST {url} (File Upload)")
+    try:
+        files = {
+            "image": ("xray_tooth_test.png", io.BytesIO(b"fake xray image bytes"), "image/png")
+        }
+        data = {
+            "type": "xray",
+            "description": "Ảnh chụp phim X-quang răng hàm dưới bệnh nhân Lan"
+        }
+        response = requests.post(url, files=files, data=data, headers=headers, timeout=10)
+        response_code = response.status_code
+        try:
+            res_data = response.json()
+        except:
+            res_data = None
+        if response_code == 201:
+            shared_data["uploaded_image_id"] = res_data["data"]["_id"]
+            print(f"    [Dynamic Data] Saved Image ID: {shared_data['uploaded_image_id']}")
+            return True, "Bệnh nhân tải lên ảnh X-quang thành công."
+        else:
+            msg = res_data.get("message") if res_data else "Error"
+            return False, f"HTTP {response_code}: {msg}"
+    except Exception as e:
+        return False, str(e)
+
+def get_image_details():
+    if not shared_data.get("uploaded_image_id"):
+        return False, "No uploaded image ID"
+    endpoint = f"/images/{shared_data['uploaded_image_id']}"
+    success, res = run_api_step("GET", endpoint, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Truy xuất chi tiết hình ảnh X-quang thành công."
+    return False, "Failed to get image details"
+
+def update_image_notes():
+    if not shared_data.get("uploaded_image_id"):
+        return False, "No uploaded image ID"
+    endpoint = f"/images/{shared_data['uploaded_image_id']}/notes"
+    payload = {
+        "notes": "Có vết nứt nhỏ ở chân răng số 36. Cần theo dõi thêm.",
+        "description": "Ảnh chụp phim X-quang nứt răng số 36"
+    }
+    success, res = run_api_step("PUT", endpoint, payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Bác sĩ thêm ghi chú vào ảnh X-quang thành công."
+    return False, "Failed to update notes"
+
+def analyze_image_ai():
+    if not shared_data.get("uploaded_image_id"):
+        return False, "No uploaded image ID"
+    endpoint = f"/images/{shared_data['uploaded_image_id']}/analyze"
+    success, res = run_api_step("POST", endpoint, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Bác sĩ chạy phân tích hình ảnh răng bằng AI thành công."
+    return False, "Failed to analyze image"
+
+def predict_by_image_id():
+    if not shared_data.get("uploaded_image_id"):
+        return False, "No uploaded image ID"
+    endpoint = f"/predict/{shared_data['uploaded_image_id']}"
+    success, res = run_api_step("POST", endpoint, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Chẩn đoán bệnh răng miệng tự động từ ảnh bằng AI thành công."
+    return False, "Failed to predict image"
+
+def predict_batch_images():
+    if not shared_data.get("uploaded_image_id"):
+        return False, "No uploaded image ID"
+    endpoint = "/predict/batch"
+    payload = {
+        "imageIds": [shared_data["uploaded_image_id"]]
+    }
+    success, res = run_api_step("POST", endpoint, payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Chẩn đoán hàng loạt ảnh bằng AI thành công."
+    return False, "Failed to run batch prediction"
+
+def get_patient_prediction_results():
+    endpoint = f"/predict/results/{shared_data['patient_user_id']}"
+    success, res = run_api_step("GET", endpoint, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Truy xuất danh sách kết quả chẩn đoán AI của bệnh nhân thành công."
+    return False, "Failed to retrieve prediction results"
+
+def delete_image():
+    if not shared_data.get("uploaded_image_id"):
+        return False, "No uploaded image ID"
+    endpoint = f"/images/{shared_data['uploaded_image_id']}"
+    success, res = run_api_step("DELETE", endpoint, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Xóa hình ảnh X-quang thành công."
+    return False, "Failed to delete image"
+
+def transcribe_audio():
+    import io
+    url = f"{BASE_URL}/voice/transcribe"
+    headers = get_headers("doctor")
+    print(f" -> POST {url} (Audio Transcription)")
+    try:
+        files = {
+            "audio": ("recording_doctor_note.webm", io.BytesIO(b"fake audio data bytes"), "audio/webm")
+        }
+        response = requests.post(url, files=files, headers=headers, timeout=10)
+        response_code = response.status_code
+        try:
+            res_data = response.json()
+        except:
+            res_data = None
+        if response_code == 200:
+            return True, "Bác sĩ chuyển đổi giọng nói thành văn bản thành công."
+        else:
+            msg = res_data.get("message") if res_data else "Error"
+            return False, f"HTTP {response_code}: {msg}"
+    except Exception as e:
+        return False, str(e)
+
+def save_voice_note():
+    payload = {
+        "transcription": "Bệnh nhân bị đau buốt răng hàm trên, đề xuất chụp X-quang răng số 26.",
+        "patientId": shared_data["patient_user_id"],
+        "noteType": "clinical"
+    }
+    success, res = run_api_step("POST", "/voice/note", payload=payload, headers=get_headers("doctor"), expected_status=201)
+    if success:
+        return True, "Bác sĩ lưu trữ ghi chú giọng nói y học thành công."
+    return False, "Failed to save voice note"
+
+def generate_tts_instruction():
+    payload = {
+        "text": "Bạn cần uống thuốc đúng giờ, đánh răng ngày 2 lần và dùng chỉ nha khoa sau ăn nhé.",
+        "language": "vi"
+    }
+    success, res = run_api_step("POST", "/voice/tts", payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Chuyển đổi hướng dẫn của bác sĩ thành giọng nói thành công."
+    return False, "Failed to run TTS"
+
+def create_payment():
+    payload = {
+        "patientId": shared_data["patient_user_id"],
+        "appointmentId": shared_data["appointment_id"],
+        "amount": 250000,
+        "method": "bank_transfer",
+        "status": "pending",
+        "description": "Thanh toán dịch vụ lấy cao răng định kỳ",
+        "services": [{"name": "Lấy cao răng", "price": 250000}],
+        "discount": 0,
+        "tax": 0
+    }
+    success, res = run_api_step("POST", "/payments", payload=payload, headers=get_headers("doctor"), expected_status=201)
+    if success and res and res.get("success") and res.get("data"):
+        shared_data["payment_id"] = res["data"]["_id"]
+        print(f"    [Dynamic Data] Created Payment ID: {shared_data['payment_id']}")
+        return True, "Bác sĩ lập hóa đơn thanh toán thành công cho bệnh nhân."
+    return False, "Failed to create payment invoice"
+
+def get_payment_details():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    endpoint = f"/payments/{shared_data['payment_id']}"
+    success, res = run_api_step("GET", endpoint, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Truy xuất chi tiết hóa đơn thanh toán thành công."
+    return False, "Failed to get payment details"
+
+def update_payment_invoice():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    endpoint = f"/payments/{shared_data['payment_id']}"
+    payload = {
+        "amount": 250000,
+        "notes": "Đã sửa đổi chi tiết giảm giá"
+    }
+    success, res = run_api_step("PUT", endpoint, payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Cập nhật chi tiết hóa đơn thành công."
+    return False, "Failed to update payment"
+
+def generate_qr_payment():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    payload = {
+        "paymentId": shared_data["payment_id"]
+    }
+    success, res = run_api_step("POST", "/payments/qr/generate", payload=payload, headers=get_headers("patient"), expected_status=200)
+    if success:
+        return True, "Tạo mã VietQR thanh toán qua MBBank thành công."
+    return False, "Failed to generate VietQR"
+
+def confirm_qr_payment():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    payload = {
+        "paymentId": shared_data["payment_id"]
+    }
+    success, res = run_api_step("POST", "/payments/qr/confirm", payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Xác nhận đã nhận chuyển khoản ngân hàng qua QR thành công."
+    return False, "Failed to confirm QR payment"
+
+def confirm_manual_payment():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    payload = {
+        "paymentId": shared_data["payment_id"],
+        "method": "cash",
+        "notes": "Đã thanh toán bằng tiền mặt trực tiếp"
+    }
+    success, res = run_api_step("POST", "/payments/confirm", payload=payload, headers=get_headers("admin"), expected_status=200)
+    if success:
+        return True, "Quản trị viên xác nhận hóa đơn đã trả bằng tiền mặt thành công."
+    return False, "Failed to confirm manual payment"
+
+def delete_payment():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    endpoint = f"/payments/{shared_data['payment_id']}"
+    success, res = run_api_step("DELETE", endpoint, headers=get_headers("admin"), expected_status=200)
+    if success:
+        return True, "Xóa hóa đơn thanh toán thành công."
+    return False, "Failed to delete payment"
 
 # ==============================================================================
 # 4. DANH SÁCH CÁC CHỨC NĂNG - TÁCH BIỆT 4 TABS EXCEL ĐẦY ĐỦ NHẤT
@@ -551,6 +845,156 @@ sheets_spec = {
                     "action": None
                 }
             ]
+        },
+        {
+            "id": "TC_ADM_12",
+            "description": "Admin kiểm tra chỉ số Dashboard tổng quan phòng khám",
+            "expected_result": "Trả về các chỉ số KPI hoạt động tổng quan (doanh thu, điểm số, lịch khám).",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin truy cập GET /admin/dashboard để lấy dữ liệu KPI.",
+                    "step_expected": "Hệ thống phản hồi thành công và trả về số liệu KPI chính xác (HTTP 200).",
+                    "input_val": "Admin JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_13",
+            "description": "Admin kiểm tra thống kê số lượng người dùng theo vai trò",
+            "expected_result": "Hệ thống trả về chính xác số liệu phân chia các tài khoản.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin truy cập GET /admin/users/stats để lấy số liệu.",
+                    "step_expected": "Trả về số liệu thống kê vai trò người dùng thành công (HTTP 200).",
+                    "input_val": "Admin JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_14",
+            "description": "Admin giám sát thông tin cấu hình máy chủ và môi trường (System Info)",
+            "expected_result": "Trả về thông tin chi tiết về bộ nhớ CPU, trạng thái MongoDB.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin truy cập GET /admin/system để xem thông số hệ thống.",
+                    "step_expected": "Trả về thông tin tài nguyên hệ thống (HTTP 200).",
+                    "input_val": "Admin JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_15",
+            "description": "Admin giám sát nhật ký hoạt động hệ thống (Recent Activities)",
+            "expected_result": "Trả về danh sách hoạt động đăng ký, đặt lịch khám mới nhất.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin truy cập GET /admin/activity để xem các hoạt động.",
+                    "step_expected": "Trả về danh sách hoạt động gần đây của phòng khám (HTTP 200).",
+                    "input_val": "Admin JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_16",
+            "description": "Admin kiểm tra danh sách hóa đơn thanh toán toàn phòng khám",
+            "expected_result": "Trả về danh sách các hóa đơn thu phí điều trị hợp lệ.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin truy cập GET /payments để xem toàn bộ hóa đơn.",
+                    "step_expected": "Trả về danh sách hóa đơn thanh toán thành công (HTTP 200).",
+                    "input_val": "Admin JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_17",
+            "description": "Admin theo dõi báo cáo thống kê doanh số thanh toán",
+            "expected_result": "Trả về báo cáo tổng số tiền đã thanh toán, chờ xử lý.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin truy cập GET /payments/stats để xem thống kê doanh số.",
+                    "step_expected": "Trả về số liệu thống kê doanh số hóa đơn (HTTP 200).",
+                    "input_val": "Admin JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_18",
+            "description": "Admin đăng ký lịch nghỉ phép cho Bác sĩ",
+            "expected_result": "Đăng ký thành công ngày nghỉ phép cho bác sĩ Tú vào ngày mai.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu POST đến /days-off để tạo lịch nghỉ phép.",
+                    "step_expected": "Hệ thống đăng ký thành công ngày nghỉ phép (HTTP 201). Lưu Day Off ID.",
+                    "input_val": "Doctor User ID\nDate: Ngày mai",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_19",
+            "description": "Admin thực hiện xóa lịch nghỉ phép của Bác sĩ",
+            "expected_result": "Hủy bỏ và xóa lịch nghỉ phép thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu DELETE đến /days-off/:id để xóa lịch nghỉ phép.",
+                    "step_expected": "Hệ thống xóa lịch nghỉ phép thành công (HTTP 200).",
+                    "input_val": "Day Off ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_20",
+            "description": "Admin xác nhận thanh toán tiền mặt thủ công cho Bệnh nhân",
+            "expected_result": "Hóa đơn chuyển sang trạng thái đã thanh toán (paid) thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu POST đến /payments/confirm để xác nhận tiền mặt.",
+                    "step_expected": "Hệ thống chuyển trạng thái hóa đơn thành paid thành công (HTTP 200).",
+                    "input_val": "Payment ID\nMethod: cash",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_21",
+            "description": "Admin xóa hóa đơn thanh toán khỏi hệ thống",
+            "expected_result": "Xóa hóa đơn thành công khỏi cơ sở dữ liệu.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu DELETE đến /payments/:id để xóa hóa đơn.",
+                    "step_expected": "Xóa hóa đơn thanh toán thành công (HTTP 200).",
+                    "input_val": "Payment ID",
+                    "action": None
+                }
+            ]
         }
     ],
 
@@ -704,6 +1148,261 @@ sheets_spec = {
                     "perform": "Bác sĩ gửi yêu cầu GET đến /scores/patient/:patientUserId/edit-history.",
                     "step_expected": "Hệ thống trả về nhật ký thay đổi và lý do cập nhật điểm răng miệng thành công (HTTP 200).",
                     "input_val": "Patient User ID\nDoctor JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_11",
+            "description": "Bác sĩ kiểm tra danh sách ngày nghỉ phép toàn hệ thống",
+            "expected_result": "Trả về thông tin danh sách các ngày nghỉ phép được đăng ký.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu GET đến /days-off để tra cứu ngày nghỉ.",
+                    "step_expected": "Hệ thống trả về danh sách lịch nghỉ phép thành công (HTTP 200).",
+                    "input_val": "Doctor JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_12",
+            "description": "Bác sĩ xem danh sách các cuộc hội thoại Chat đang hoạt động",
+            "expected_result": "Trả về danh sách các phòng chat hiện hữu của bác sĩ.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu GET đến /conversations để xem danh sách chat.",
+                    "step_expected": "Trả về danh sách các phòng chat đang hoạt động thành công (HTTP 200).",
+                    "input_val": "Doctor JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_13",
+            "description": "Bác sĩ truy cập nội dung hội thoại chi tiết trong phòng chat",
+            "expected_result": "Trả về đầy đủ lịch sử các tin nhắn trao đổi trong cuộc hội thoại.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu GET đến /conversations/:id để xem tin nhắn.",
+                    "step_expected": "Hệ thống trả về lịch sử tin nhắn của cuộc trò chuyện (HTTP 200).",
+                    "input_val": "Conversation ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_14",
+            "description": "Bác sĩ gửi tin nhắn trả lời tư vấn trong phòng chat",
+            "expected_result": "Gửi tin nhắn trả lời bệnh nhân thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST đến /conversations/:id/messages để gửi tin nhắn.",
+                    "step_expected": "Hệ thống gửi tin nhắn thành công và phản hồi tin nhắn mới (HTTP 201).",
+                    "input_val": "Conversation ID\nContent tin nhắn trả lời",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_15",
+            "description": "Bác sĩ quản lý thư viện hình ảnh X-quang răng của bệnh nhân",
+            "expected_result": "Trả về danh sách tất cả các ảnh răng phòng khám đã tải lên.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu GET đến /images để xem thư viện ảnh.",
+                    "step_expected": "Hệ thống phản hồi danh sách hình ảnh thành công (HTTP 200).",
+                    "input_val": "Doctor JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_16",
+            "description": "Bác sĩ bổ sung ghi chú bệnh học vào hình ảnh X-quang răng",
+            "expected_result": "Cập nhật ghi chú răng miệng vào tệp tin ảnh thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu PUT đến /images/:id/notes để cập nhật ghi chú.",
+                    "step_expected": "Cập nhật ghi chú cho hình ảnh X-quang thành công (HTTP 200).",
+                    "input_val": "Image ID\nGhi chú: Nứt chân răng số 36",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_17",
+            "description": "Bác sĩ chạy phân tích tự động ảnh X-quang răng bằng AI",
+            "expected_result": "AI phân tích cấu trúc răng và trả về chẩn đoán thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST đến /images/:id/analyze để phân tích AI.",
+                    "step_expected": "Hệ thống chạy phân tích AI và trả kết quả thành công (HTTP 200).",
+                    "input_val": "Image ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_18",
+            "description": "Bác sĩ thực hiện chẩn đoán AI riêng biệt bằng mã ảnh",
+            "expected_result": "Trả về kết quả dự đoán tổn thương răng từ AI.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST chẩn đoán đến /predict/:imageId.",
+                    "step_expected": "Hệ thống trả về kết quả chẩn đoán tự động thành công (HTTP 200).",
+                    "input_val": "Image ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_19",
+            "description": "Bác sĩ chạy chẩn đoán hàng loạt hình ảnh bằng AI (Batch Prediction)",
+            "expected_result": "Trả về danh sách kết quả dự đoán hàng loạt ảnh X-quang gửi lên.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST đến /predict/batch với danh sách mã ảnh.",
+                    "step_expected": "Hệ thống chẩn đoán hàng loạt thành công (HTTP 200).",
+                    "input_val": "Array Image IDs",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_20",
+            "description": "Bác sĩ tra cứu danh sách kết quả chẩn đoán AI của Bệnh nhân",
+            "expected_result": "Trả về tất cả lịch sử kết quả dự đoán AI đã lưu của bệnh nhân.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu GET đến /predict/results/:patientId để xem kết quả.",
+                    "step_expected": "Trả về lịch sử kết quả dự đoán AI thành công (HTTP 200).",
+                    "input_val": "Patient User ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_21",
+            "description": "Bác sĩ thực hiện xóa hình ảnh X-quang khỏi thư viện bệnh học",
+            "expected_result": "Xóa thành công hình ảnh (soft delete).",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu DELETE đến /images/:id để xóa ảnh.",
+                    "step_expected": "Xóa hình ảnh thành công khỏi thư viện (HTTP 200).",
+                    "input_val": "Image ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_22",
+            "description": "Bác sĩ chuyển văn bản hướng dẫn y khoa thành Giọng nói (Text-To-Speech)",
+            "expected_result": "Trả về URL âm thanh giọng nói hướng dẫn điều trị mô phỏng.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST đến /voice/tts với văn bản hướng dẫn.",
+                    "step_expected": "Hệ thống tạo tệp giọng nói thành công (HTTP 200).",
+                    "input_val": "Text hướng dẫn y khoa",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_23",
+            "description": "Bác sĩ thực hiện chuyển đổi ghi âm bệnh án thành văn bản (Speech-To-Text)",
+            "expected_result": "Hệ thống phân tích giọng nói và dịch thành chuỗi ký tự thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST chứa file ghi âm đến /voice/transcribe.",
+                    "step_expected": "Chuyển đổi âm thanh thành văn bản thành công (HTTP 200).",
+                    "input_val": "File ghi âm giọng nói",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_24",
+            "description": "Bác sĩ lưu ghi chú bệnh án lâm sàng bằng giọng nói (Voice Note)",
+            "expected_result": "Ghi chú lâm sàng được lưu trữ thành công vào bệnh án.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST đến /voice/note để lưu ghi chú lâm sàng.",
+                    "step_expected": "Hệ thống lưu trữ ghi chú thành công (HTTP 201).",
+                    "input_val": "Transcription text\nPatient ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_25",
+            "description": "Bác sĩ giám sát danh sách hóa đơn thanh toán bệnh viện",
+            "expected_result": "Trả về danh sách hóa đơn để theo dõi công nợ dịch vụ khám.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu GET đến /payments để xem hóa đơn.",
+                    "step_expected": "Trả về danh sách hóa đơn thu phí thành công (HTTP 200).",
+                    "input_val": "Doctor JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_26",
+            "description": "Bác sĩ lập hóa đơn thanh toán điều trị răng cho bệnh nhân",
+            "expected_result": "Tạo hóa đơn thanh toán mới thành công ở trạng thái chờ thanh toán.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST tạo hóa đơn đến /payments.",
+                    "step_expected": "Hệ thống tạo hóa đơn thành công (HTTP 201). Lưu Payment ID.",
+                    "input_val": "Patient ID\nAppointment ID\nAmount: 250000",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_27",
+            "description": "Bác sĩ xác nhận Bệnh nhân chuyển khoản ngân hàng qua mã QR (QR Payment Confirm)",
+            "expected_result": "Hệ thống ghi nhận và chuyển trạng thái hóa đơn sang đã thanh toán.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST xác nhận đến /payments/qr/confirm.",
+                    "step_expected": "Hệ thống chuyển đổi trạng thái hóa đơn thành công (HTTP 200).",
+                    "input_val": "Payment ID",
                     "action": None
                 }
             ]
@@ -885,6 +1584,111 @@ sheets_spec = {
                     "action": None
                 }
             ]
+        },
+        {
+            "id": "TC_PAT_12",
+            "description": "Bệnh nhân lấy danh sách Bác sĩ có sẵn để nhắn tin tư vấn trực tuyến",
+            "expected_result": "Trả về danh sách các tài khoản bác sĩ hoạt động có thể chat.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu GET đến /conversations/available-users.",
+                    "step_expected": "Trả về danh sách các bác sĩ khả dụng thành công (HTTP 200).",
+                    "input_val": "Patient JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_PAT_13",
+            "description": "Bệnh nhân khởi tạo phòng chat trực tuyến với Bác sĩ Tú",
+            "expected_result": "Khởi tạo thành công phòng chat mới hoặc trả về phòng chat có sẵn.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu POST đến /conversations/find-or-create với bác sĩ Tú.",
+                    "step_expected": "Khởi tạo thành công phòng chat (HTTP 200). Lưu Conversation ID.",
+                    "input_val": "Doctor User ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_PAT_14",
+            "description": "Bệnh nhân gửi tin nhắn trao đổi tình trạng răng trong phòng chat",
+            "expected_result": "Gửi tin nhắn thành công đến phòng chat chung của hai người.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu POST đến /conversations/:id/messages để gửi tin nhắn.",
+                    "step_expected": "Gửi tin nhắn thành công và phản hồi tin nhắn đã tạo (HTTP 201).",
+                    "input_val": "Conversation ID\nNội dung tin nhắn ê buốt răng",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_PAT_15",
+            "description": "Bệnh nhân tải lên tệp tin hình ảnh răng của mình lên hệ thống",
+            "expected_result": "Tải lên thành công ảnh chụp và nhận lại đường link ảnh.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu POST đa thành phần (Multipart) đến /images/upload.",
+                    "step_expected": "Tải ảnh thành công và lưu trữ trên máy chủ (HTTP 201). Lưu Image ID.",
+                    "input_val": "Tệp tin hình ảnh\nType: xray",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_PAT_16",
+            "description": "Bệnh nhân tra cứu thư viện hình ảnh răng cá nhân đã tải lên",
+            "expected_result": "Trả về danh sách các tệp tin ảnh chụp răng của chính bệnh nhân.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu GET đến /images/me.",
+                    "step_expected": "Trả về danh sách ảnh răng của bệnh nhân thành công (HTTP 200).",
+                    "input_val": "Patient JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_PAT_17",
+            "description": "Bệnh nhân tra cứu danh sách hóa đơn thanh toán điều trị cá nhân",
+            "expected_result": "Trả về lịch sử các hóa đơn thu phí chữa răng của bệnh nhân.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu GET đến /payments/me.",
+                    "step_expected": "Trả về danh sách hóa đơn cá nhân thành công (HTTP 200).",
+                    "input_val": "Patient JWT Token",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_PAT_18",
+            "description": "Bệnh nhân tự tạo mã QR thanh toán hóa đơn bằng tài khoản MBBank (VietQR)",
+            "expected_result": "Trả về đường dẫn mã QR động và nội dung chuyển khoản tự động.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bệnh nhân gửi yêu cầu POST đến /payments/qr/generate.",
+                    "step_expected": "Tạo mã VietQR động thành công để quét thanh toán (HTTP 200).",
+                    "input_val": "Payment ID",
+                    "action": None
+                }
+            ]
         }
     ]
 }
@@ -912,6 +1716,16 @@ chronological_steps = [
     ("Admin", "TC_ADM_09", 1, lambda: run_api_step("GET", "/appointments/stats", headers=get_headers("admin"), expected_status=200)),
     ("Admin", "TC_ADM_10", 1, lambda: run_api_step("GET", "/records", headers=get_headers("admin"), expected_status=200)),
     ("Admin", "TC_ADM_11", 1, lambda: run_api_step("GET", "/scores", headers=get_headers("admin"), expected_status=200)),
+    
+    # Mở rộng Admin stats & payments & days-off
+    ("Admin", "TC_ADM_12", 1, lambda: run_api_step("GET", "/admin/dashboard", headers=get_headers("admin"), expected_status=200)),
+    ("Admin", "TC_ADM_13", 1, lambda: run_api_step("GET", "/admin/users/stats", headers=get_headers("admin"), expected_status=200)),
+    ("Admin", "TC_ADM_14", 1, lambda: run_api_step("GET", "/admin/system", headers=get_headers("admin"), expected_status=200)),
+    ("Admin", "TC_ADM_15", 1, lambda: run_api_step("GET", "/admin/activity", headers=get_headers("admin"), expected_status=200)),
+    ("Admin", "TC_ADM_16", 1, lambda: run_api_step("GET", "/payments", headers=get_headers("admin"), expected_status=200)),
+    ("Admin", "TC_ADM_17", 1, lambda: run_api_step("GET", "/payments/stats", headers=get_headers("admin"), expected_status=200)),
+    ("Admin", "TC_ADM_18", 1, save_day_off),
+    ("Admin", "TC_ADM_19", 1, delete_day_off),
 
     # Nhóm 3: Doctor Setup
     ("Bác sĩ", "TC_DOC_01", 1, save_doctor_token),
@@ -920,6 +1734,7 @@ chronological_steps = [
     ("Bác sĩ", "TC_DOC_04", 1, lambda: run_api_step("GET", "/doctors/patients", headers=get_headers("doctor"), expected_status=200)),
     ("Bác sĩ", "TC_DOC_05", 1, save_created_shift), # Đăng ký ca trực ngày mai (morning)
     ("Bác sĩ", "TC_DOC_06", 1, lambda: run_api_step("GET", "/shifts/me", headers=get_headers("doctor"), expected_status=200)),
+    ("Bác sĩ", "TC_DOC_11", 1, lambda: run_api_step("GET", "/days-off", headers=get_headers("doctor"), expected_status=200)),
 
     # Nhóm 4: Patient Booking & Chat
     ("Bệnh nhân", "TC_PAT_01", 1, save_patient_token),
@@ -933,6 +1748,33 @@ chronological_steps = [
     ("Bệnh nhân", "TC_PAT_08", 2, cancel_temp_appointment), # Hủy cuộc hẹn phụ chiều mai
     ("Bệnh nhân", "TC_PAT_09", 1, lambda: run_api_step("POST", "/chat/private", payload={"message": "Toi bi nhuc rang khon..."} ,headers=get_headers("patient"), expected_status=200)),
     ("Bệnh nhân", "TC_PAT_10", 1, lambda: run_api_step("GET", "/chat/history", headers=get_headers("patient"), expected_status=200)),
+    
+    # Mở rộng hội thoại chat (Bệnh nhân chat với bác sĩ)
+    ("Bệnh nhân", "TC_PAT_12", 1, lambda: run_api_step("GET", "/conversations/available-users", headers=get_headers("patient"), expected_status=200)),
+    ("Bệnh nhân", "TC_PAT_13", 1, find_or_create_conversation),
+    ("Bệnh nhân", "TC_PAT_14", 1, patient_send_message),
+    
+    # Bác sĩ kiểm tra tin nhắn & phản hồi chat
+    ("Bác sĩ", "TC_DOC_12", 1, lambda: run_api_step("GET", "/conversations", headers=get_headers("doctor"), expected_status=200)),
+    ("Bác sĩ", "TC_DOC_13", 1, lambda: run_api_step("GET", f"/conversations/{shared_data['conversation_id']}", headers=get_headers("doctor"), expected_status=200)),
+    ("Bác sĩ", "TC_DOC_14", 1, doctor_send_message),
+    
+    # Bệnh nhân tải ảnh X-quang răng & xem ảnh
+    ("Bệnh nhân", "TC_PAT_15", 1, upload_patient_image),
+    ("Bệnh nhân", "TC_PAT_16", 1, lambda: run_api_step("GET", "/images/me", headers=get_headers("patient"), expected_status=200)),
+    
+    # Bác sĩ xem thư viện ảnh & chẩn đoán AI
+    ("Bác sĩ", "TC_DOC_15", 1, lambda: run_api_step("GET", "/images", headers=get_headers("doctor"), expected_status=200)),
+    ("Bác sĩ", "TC_DOC_16", 1, update_image_notes),
+    ("Bác sĩ", "TC_DOC_17", 1, analyze_image_ai),
+    ("Bác sĩ", "TC_DOC_18", 1, predict_by_image_id),
+    ("Bác sĩ", "TC_DOC_19", 1, predict_batch_images),
+    ("Bác sĩ", "TC_DOC_20", 1, get_patient_prediction_results),
+    
+    # Bác sĩ xử lý âm thanh (Voice / TTS)
+    ("Bác sĩ", "TC_DOC_22", 1, generate_tts_instruction),
+    ("Bác sĩ", "TC_DOC_23", 1, transcribe_audio),
+    ("Bác sĩ", "TC_DOC_24", 1, save_voice_note),
 
     # Nhóm 5: Doctor clinical updates (Yêu cầu có appointment_id và patient_user_id từ nhóm trước!)
     ("Bác sĩ", "TC_DOC_07", 1, approve_appointment),
@@ -941,7 +1783,19 @@ chronological_steps = [
     ("Bác sĩ", "TC_DOC_10", 1, lambda: run_api_step("GET", f"/scores/patient/{shared_data['patient_user_id']}/edit-history", headers=get_headers("doctor"), expected_status=200)),
 
     # Nhóm 6: Patient Recheck
-    ("Bệnh nhân", "TC_PAT_11", 1, lambda: run_api_step("GET", "/scores/me", headers=get_headers("patient"), expected_status=200))
+    ("Bệnh nhân", "TC_PAT_11", 1, lambda: run_api_step("GET", "/scores/me", headers=get_headers("patient"), expected_status=200)),
+    
+    # Nhóm 7: Thanh toán hóa đơn (Payments)
+    ("Bác sĩ", "TC_DOC_25", 1, lambda: run_api_step("GET", "/payments", headers=get_headers("doctor"), expected_status=200)),
+    ("Bác sĩ", "TC_DOC_26", 1, create_payment),
+    ("Bệnh nhân", "TC_PAT_17", 1, lambda: run_api_step("GET", "/payments/me", headers=get_headers("patient"), expected_status=200)),
+    ("Bệnh nhân", "TC_PAT_18", 1, generate_qr_payment),
+    ("Bác sĩ", "TC_DOC_27", 1, confirm_qr_payment),
+    ("Admin", "TC_ADM_20", 1, confirm_manual_payment),
+    ("Admin", "TC_ADM_21", 1, delete_payment),
+    
+    # Bác sĩ dọn dẹp ảnh X-quang răng sau kiểm thử
+    ("Bác sĩ", "TC_DOC_21", 1, delete_image)
 ]
 
 # ==============================================================================
@@ -1056,6 +1910,72 @@ def execute_test_suite():
                 actual_log = "Truy xuất thành công lịch sử kiểm toán cập nhật điểm."
             elif "tc_pat_11" in desc:
                 actual_log = "Bệnh nhân xem thấy điểm răng miệng tăng lên 88 điểm."
+            elif "tc_adm_12" in desc:
+                actual_log = "Hệ thống trả về các chỉ số KPI hoạt động tổng quan."
+            elif "tc_adm_13" in desc:
+                actual_log = "Trả về số liệu thống kê vai trò người dùng thành công."
+            elif "tc_adm_14" in desc:
+                actual_log = "Trả về thông tin tài nguyên cấu hình hệ thống."
+            elif "tc_adm_15" in desc:
+                actual_log = "Trả về danh sách hoạt động gần đây của phòng khám."
+            elif "tc_adm_16" in desc or "tc_doc_25" in desc:
+                actual_log = "Trả về danh sách hóa đơn thanh toán thành công."
+            elif "tc_adm_17" in desc:
+                actual_log = "Trả về số liệu thống kê doanh số hóa đơn."
+            elif "tc_adm_18" in desc:
+                actual_log = "Đăng ký thành công ngày nghỉ phép cho bác sĩ."
+            elif "tc_adm_19" in desc:
+                actual_log = "Hệ thống xóa lịch nghỉ phép thành công."
+            elif "tc_adm_20" in desc:
+                actual_log = "Xác nhận hóa đơn đã trả bằng tiền mặt thành công."
+            elif "tc_adm_21" in desc:
+                actual_log = "Xóa hóa đơn thanh toán thành công khỏi hệ thống."
+            elif "tc_doc_11" in desc:
+                actual_log = "Hệ thống trả về danh sách lịch nghỉ phép thành công."
+            elif "tc_doc_12" in desc:
+                actual_log = "Trả về danh sách các phòng chat đang hoạt động thành công."
+            elif "tc_doc_13" in desc:
+                actual_log = "Trả về lịch sử tin nhắn của cuộc trò chuyện thành công."
+            elif "tc_doc_14" in desc:
+                actual_log = "Bác sĩ phản hồi tin nhắn tư vấn thành công."
+            elif "tc_doc_15" in desc:
+                actual_log = "Trả về danh sách toàn bộ hình ảnh trong hệ thống."
+            elif "tc_doc_16" in desc:
+                actual_log = "Cập nhật ghi chú cho hình ảnh X-quang thành công."
+            elif "tc_doc_17" in desc:
+                actual_log = "Hệ thống chạy phân tích AI và trả kết quả thành công."
+            elif "tc_doc_18" in desc:
+                actual_log = "Hệ thống trả về kết quả chẩn đoán tự động thành công."
+            elif "tc_doc_19" in desc:
+                actual_log = "Hệ thống chẩn đoán hàng loạt hình ảnh thành công."
+            elif "tc_doc_20" in desc:
+                actual_log = "Trả về lịch sử kết quả dự đoán AI thành công."
+            elif "tc_doc_21" in desc:
+                actual_log = "Xóa hình ảnh thành công khỏi thư viện bệnh học."
+            elif "tc_doc_22" in desc:
+                actual_log = "Hệ thống tạo tệp giọng nói hướng dẫn thành công."
+            elif "tc_doc_23" in desc:
+                actual_log = "Chuyển đổi âm thanh thành văn bản thành công."
+            elif "tc_doc_24" in desc:
+                actual_log = "Hệ thống lưu trữ ghi chú lâm sàng thành công."
+            elif "tc_doc_26" in desc:
+                actual_log = "Hệ thống lập hóa đơn thanh toán mới thành công."
+            elif "tc_doc_27" in desc:
+                actual_log = "Hệ thống xác nhận đã thanh toán qua QR thành công."
+            elif "tc_pat_12" in desc:
+                actual_log = "Trả về danh sách các bác sĩ khả dụng thành công."
+            elif "tc_pat_13" in desc:
+                actual_log = "Khởi tạo thành công phòng chat mới."
+            elif "tc_pat_14" in desc:
+                actual_log = "Gửi tin nhắn mô tả triệu chứng răng ê buốt thành công."
+            elif "tc_pat_15" in desc:
+                actual_log = "Tải lên hình ảnh X-quang răng thành công."
+            elif "tc_pat_16" in desc:
+                actual_log = "Trả về danh sách hình ảnh răng của bệnh nhân thành công."
+            elif "tc_pat_17" in desc:
+                actual_log = "Trả về danh sách hóa đơn cá nhân thành công."
+            elif "tc_pat_18" in desc:
+                actual_log = "Tạo mã VietQR động để quét thanh toán thành công."
             else:
                 actual_log = "Thực thi thành công. (HTTP 200)"
         else:
