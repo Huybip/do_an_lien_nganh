@@ -73,7 +73,9 @@ shared_data = {
     "uploaded_image_id": None,     # ID ảnh tải lên
     "payment_id": None,            # Hóa đơn thanh toán ID
     "payment_amount": None,        # Số tiền hóa đơn
-    "payment_invoice_number": None # Mã hóa đơn thanh toán
+    "payment_invoice_number": None, # Mã hóa đơn thanh toán
+    "created_record_id": None,     # ID hồ sơ bệnh án mới tạo
+    "temp_service_id": None        # ID dịch vụ tạo thử nghiệm
 }
 
 from datetime import timedelta
@@ -317,6 +319,90 @@ def update_dental_score():
 # --------------------------------------------------------------------------
 # BỔ SUNG CÁC HÀM NGHIỆP VỤ CHO CÁC CHỨC NĂNG MỚI
 # --------------------------------------------------------------------------
+def checkin_appointment():
+    if not shared_data.get("appointment_id"):
+        return False, "No appointment ID"
+    endpoint = f"/appointments/{shared_data['appointment_id']}"
+    success, res = run_api_step("PUT", endpoint, payload={"status": "checked-in"}, headers=get_headers("admin"), expected_status=200)
+    if success:
+        return True, "Tiếp đón bệnh nhân thành công (status: checked-in)."
+    return False, "Check-in failed"
+
+def start_examination():
+    if not shared_data.get("appointment_id"):
+        return False, "No appointment ID"
+    endpoint = f"/appointments/{shared_data['appointment_id']}"
+    success, res = run_api_step("PUT", endpoint, payload={"status": "examining"}, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Bác sĩ bắt đầu khám bệnh nhân thành công (status: examining)."
+    return False, "Start examination failed"
+
+def create_medical_record():
+    payload = {
+        "patientId": shared_data["patient_user_id"],
+        "appointmentId": shared_data["appointment_id"],
+        "diagnosis": "Viêm tủy cấp răng số 46",
+        "treatment": "Chữa tủy răng và hàn ống tủy",
+        "prescription": "Amoxicillin 500mg, Paracetamol 500mg",
+        "notes": "Hẹn tái khám sau 1 tuần",
+        "type": "treatment",
+        "date": shared_data["tomorrow_date"]
+    }
+    success, res = run_api_step("POST", "/records", payload=payload, headers=get_headers("doctor"), expected_status=201)
+    if success and res and res.get("success") and res.get("data"):
+        shared_data["created_record_id"] = res["data"]["_id"]
+        print(f"    [Dynamic Data] Saved Medical Record ID: {shared_data['created_record_id']}")
+        return True, "Bác sĩ tạo hồ sơ bệnh án thành công (loại: treatment)."
+    return False, "Failed to create medical record"
+
+def update_medical_record():
+    if not shared_data.get("created_record_id"):
+        return False, "No created record ID"
+    endpoint = f"/records/{shared_data['created_record_id']}"
+    payload = {
+        "notes": "Đã đổi đơn thuốc sang kháng sinh thế hệ mới, dặn dò vệ sinh kỹ răng số 46"
+    }
+    success, res = run_api_step("PUT", endpoint, payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Bác sĩ cập nhật hồ sơ bệnh án thành công."
+    return False, "Failed to update medical record"
+
+def create_dental_service():
+    payload = {
+        "name": "Nhổ răng khôn QA Test",
+        "price": 1000000,
+        "category": "surgery",
+        "description": "Nhổ răng khôn mọc lệch bằng máy siêu âm Piezotome"
+    }
+    success, res = run_api_step("POST", "/services", payload=payload, headers=get_headers("admin"), expected_status=201)
+    if success and res and res.get("success") and res.get("data"):
+        shared_data["temp_service_id"] = res["data"]["_id"]
+        print(f"    [Dynamic Data] Saved Temp Service ID: {shared_data['temp_service_id']}")
+        return True, "Admin tạo dịch vụ nha khoa mới thành công."
+    return False, "Failed to create service"
+
+def update_dental_service():
+    if not shared_data.get("temp_service_id"):
+        return False, "No temp service ID"
+    endpoint = f"/services/{shared_data['temp_service_id']}"
+    payload = {
+        "price": 1200000,
+        "description": "Nhổ răng khôn mọc lệch bằng máy siêu âm Piezotome - Đã cập nhật giá"
+    }
+    success, res = run_api_step("PUT", endpoint, payload=payload, headers=get_headers("admin"), expected_status=200)
+    if success:
+        return True, "Admin cập nhật giá dịch vụ thành công."
+    return False, "Failed to update service"
+
+def delete_dental_service():
+    if not shared_data.get("temp_service_id"):
+        return False, "No temp service ID"
+    endpoint = f"/services/{shared_data['temp_service_id']}"
+    success, res = run_api_step("DELETE", endpoint, headers=get_headers("admin"), expected_status=200)
+    if success:
+        return True, "Admin xóa dịch vụ nha khoa thành công."
+    return False, "Failed to delete service"
+
 def save_day_off():
     payload = {
         "date": shared_data["tomorrow_date"],
@@ -1018,6 +1104,66 @@ sheets_spec = {
                     "action": None
                 }
             ]
+        },
+        {
+            "id": "TC_ADM_22",
+            "description": "Admin (hoặc Lễ tân) thực hiện tiếp đón người đến khám (Check-in)",
+            "expected_result": "Trạng thái lịch hẹn chuyển sang 'checked-in' thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu PUT đến /appointments/:id để check-in bệnh nhân.",
+                    "step_expected": "Trạng thái cuộc hẹn cập nhật thành 'checked-in' thành công.",
+                    "input_val": "Appointment ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_23",
+            "description": "Admin quản lý Danh mục Dịch vụ nha khoa (Tạo mới dịch vụ)",
+            "expected_result": "Tạo dịch vụ nha khoa mới thành công trên hệ thống.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu POST đến /services để tạo dịch vụ mới.",
+                    "step_expected": "Dịch vụ nha khoa được tạo mới thành công với mã ID lưu lại.",
+                    "input_val": "Payload dịch vụ mới",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_24",
+            "description": "Admin thiết lập Giá dịch vụ nha khoa",
+            "expected_result": "Cập nhật và lưu đơn giá dịch vụ nha khoa thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu PUT đến /services/:id để thay đổi đơn giá dịch vụ.",
+                    "step_expected": "Đơn giá mới của dịch vụ được cập nhật thành công.",
+                    "input_val": "Service ID\nĐơn giá mới",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_ADM_25",
+            "description": "Admin xóa dịch vụ nha khoa khỏi hệ thống",
+            "expected_result": "Xóa dịch vụ thành công khỏi cơ sở dữ liệu.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Admin gửi yêu cầu DELETE đến /services/:id để xóa dịch vụ.",
+                    "step_expected": "Dịch vụ nha khoa được xóa thành công khỏi hệ thống.",
+                    "input_val": "Service ID",
+                    "action": None
+                }
+            ]
         }
     ],
 
@@ -1429,6 +1575,51 @@ sheets_spec = {
                     "action": None
                 }
             ]
+        },
+        {
+            "id": "TC_DOC_28",
+            "description": "Bác sĩ tiếp nhận bệnh nhân vào khám bệnh",
+            "expected_result": "Trạng thái lịch hẹn chuyển sang 'examining' (Đang khám) thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu PUT đến /appointments/:id để bắt đầu ca khám.",
+                    "step_expected": "Trạng thái lịch hẹn chuyển đổi thành công sang examining.",
+                    "input_val": "Appointment ID",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_29",
+            "description": "Bác sĩ lập hồ sơ bệnh án cho bệnh nhân (Khám bệnh và cập nhật hồ sơ)",
+            "expected_result": "Lập hồ sơ bệnh án thành công với loại hình thức mong muốn (ví dụ: treatment).",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu POST tạo hồ sơ bệnh án mới đến /records.",
+                    "step_expected": "Hồ sơ bệnh án được lưu trữ thành công trên hệ thống.",
+                    "input_val": "Payload hồ sơ bệnh án",
+                    "action": None
+                }
+            ]
+        },
+        {
+            "id": "TC_DOC_30",
+            "description": "Bác sĩ cập nhật chỉnh sửa thông tin hồ sơ bệnh án",
+            "expected_result": "Cập nhật thông tin chẩn đoán, điều trị hoặc ghi chú thành công.",
+            "status": "Pass",
+            "steps": [
+                {
+                    "step_num": 1,
+                    "perform": "Bác sĩ gửi yêu cầu PUT đến /records/:id để cập nhật nội dung ghi chú.",
+                    "step_expected": "Hệ thống lưu lại các thay đổi ghi chú thành công.",
+                    "input_val": "Record ID\nNội dung ghi chú mới",
+                    "action": None
+                }
+            ]
         }
     ],
 
@@ -1749,6 +1940,9 @@ chronological_steps = [
     ("Admin", "TC_ADM_17", 1, lambda: run_api_step("GET", "/payments/stats", headers=get_headers("admin"), expected_status=200)),
     ("Admin", "TC_ADM_18", 1, save_day_off),
     ("Admin", "TC_ADM_19", 1, delete_day_off),
+    ("Admin", "TC_ADM_23", 1, create_dental_service),
+    ("Admin", "TC_ADM_24", 1, update_dental_service),
+    ("Admin", "TC_ADM_25", 1, delete_dental_service),
 
     # Nhóm 3: Doctor Setup
     ("Bác sĩ", "TC_DOC_01", 1, save_doctor_token),
@@ -1801,6 +1995,10 @@ chronological_steps = [
 
     # Nhóm 5: Doctor clinical updates (Yêu cầu có appointment_id và patient_user_id từ nhóm trước!)
     ("Bác sĩ", "TC_DOC_07", 1, approve_appointment),
+    ("Admin", "TC_ADM_22", 1, checkin_appointment),
+    ("Bác sĩ", "TC_DOC_28", 1, start_examination),
+    ("Bác sĩ", "TC_DOC_29", 1, create_medical_record),
+    ("Bác sĩ", "TC_DOC_30", 1, update_medical_record),
     ("Bác sĩ", "TC_DOC_08", 1, complete_appointment),
     ("Bác sĩ", "TC_DOC_09", 1, update_dental_score),
     ("Bác sĩ", "TC_DOC_10", 1, lambda: run_api_step("GET", f"/scores/patient/{shared_data['patient_user_id']}/edit-history", headers=get_headers("doctor"), expected_status=200)),
@@ -1989,6 +2187,20 @@ def execute_test_suite():
                 actual_log = "Hệ thống lập hóa đơn thanh toán mới thành công."
             elif "tc_doc_27" in desc:
                 actual_log = "Hệ thống xác nhận đã thanh toán qua QR thành công."
+            elif "tc_adm_22" in desc:
+                actual_log = "Tiếp đón bệnh nhân thành công (status: checked-in)."
+            elif "tc_adm_23" in desc:
+                actual_log = "Admin tạo dịch vụ nha khoa mới thành công."
+            elif "tc_adm_24" in desc:
+                actual_log = "Admin cập nhật giá dịch vụ thành công."
+            elif "tc_adm_25" in desc:
+                actual_log = "Admin xóa dịch vụ nha khoa thành công."
+            elif "tc_doc_28" in desc:
+                actual_log = "Bác sĩ bắt đầu khám bệnh nhân thành công (status: examining)."
+            elif "tc_doc_29" in desc:
+                actual_log = "Bác sĩ tạo hồ sơ bệnh án thành công (loại: treatment)."
+            elif "tc_doc_30" in desc:
+                actual_log = "Bác sĩ cập nhật hồ sơ bệnh án thành công."
             elif "tc_pat_12" in desc:
                 actual_log = "Trả về danh sách các bác sĩ khả dụng thành công."
             elif "tc_pat_13" in desc:
