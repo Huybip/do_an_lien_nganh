@@ -270,7 +270,7 @@ export default function PatientPayments() {
       {/* QR Modal */}
       {showQR && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-scale-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-scale-in">
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">
                 {isSuccess ? "Thanh toán thành công" : "Quét mã QR để thanh toán"}
@@ -314,7 +314,7 @@ export default function PatientPayments() {
               ) : qrData ? (
                 <>
                   <div className="bg-white rounded-2xl p-4 inline-block shadow border border-slate-200 relative">
-                    <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52" />
+                    <img src={qrData.qrDataUrl} alt="QR" className="w-72 h-72" />
                     <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none rounded-2xl" />
                   </div>
                   <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">

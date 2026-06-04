@@ -103,7 +103,7 @@ export default function DoctorPayments() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>
-            QR MBBank
+            QR VietQR
           </button>
         </div>
 
@@ -337,8 +337,8 @@ function QRModal({ payment, open, onClose, onSuccess }: {
 
               {/* QR Code */}
               <div className="bg-white rounded-xl p-4 text-center border border-slate-200 shadow-sm">
-                <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52 mx-auto rounded-xl" />
-                <p className="text-xs text-slate-400 mt-2">Quet ma QR bang ung dung ngan hang</p>
+                <img src={qrData.qrDataUrl} alt="QR" className="w-72 h-72 mx-auto rounded-xl" />
+                <p className="text-xs text-slate-400 mt-2">Quét mã QR bằng ứng dụng ngân hàng</p>
               </div>
 
               {/* Bank details */}
@@ -349,16 +349,17 @@ function QRModal({ payment, open, onClose, onSuccess }: {
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center">
-                      <span className="text-white font-black text-[9px]">MB</span>
+                      <span className="text-white font-black text-[9px]">QR</span>
                     </div>
-                    <p className="text-white text-xs font-bold uppercase tracking-wider">MBBank - Thong tin tai khoan</p>
+                    <p className="text-white text-xs font-bold uppercase tracking-wider">Thông tin tài khoản VietQR</p>
                   </div>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {[
-                    { label: "So tai khoan", value: "280605666888" },
-                    { label: "Ten tai khoan", value: "Nguyen Thai Son" },
-                    { label: "Noi dung CK", value: qrData.addInfo },
+                    { label: "Ngân hàng", value: qrData.bankId || "BIDV" },
+                    { label: "Số tài khoản", value: qrData.accountNo || "1231270139" },
+                    { label: "Tên tài khoản", value: qrData.accountName || "Trần Quốc Huy" },
+                    { label: "Nội dung CK", value: qrData.addInfo },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between px-4 py-3">
                       <span className="text-xs font-medium text-slate-400">{item.label}</span>
@@ -471,22 +472,22 @@ function QRCreateModal({ open, onClose, onSuccess }: {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="bg-gradient-to-r from-violet-50 to-purple-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Tạo QR Thanh toán MBBank</h2>
+          <h2 className="text-lg font-bold text-slate-900">Tạo QR Chuyển khoản VietQR</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
         </div>
         <div className="p-6 space-y-4">
           {step === "setup" ? (
             <>
-              {/* MBBank info banner */}
+              {/* VietQR info banner */}
               <div
                 className="rounded-xl p-4 text-white text-center"
                 style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
               >
-                <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-white font-black text-base">MB</span>
+                <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center mx-auto mb-2 font-black text-sm">
+                  🏦
                 </div>
-                <p className="font-bold text-sm">QR MBBank VietQR</p>
-                <p className="text-blue-200 text-xs mt-1">STK: 280605666888 - Nguyen Thai Son</p>
+                <p className="font-bold text-sm">Cổng thanh toán VietQR</p>
+                <p className="text-blue-200 text-xs mt-1">STK: 1231270139 - Trần Quốc Huy (BIDV)</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Tên bệnh nhân</label>
@@ -551,8 +552,8 @@ function QRCreateModal({ open, onClose, onSuccess }: {
 
               {/* QR Code */}
               <div className="bg-white rounded-xl p-4 text-center border border-slate-200 shadow-sm">
-                <img src={qrData.qrDataUrl} alt="QR" className="w-52 h-52 mx-auto rounded-xl" />
-                <p className="text-xs text-slate-400 mt-2">Quet ma QR bang ung dung ngan hang</p>
+                <img src={qrData.qrDataUrl} alt="QR" className="w-72 h-72 mx-auto rounded-xl" />
+                <p className="text-xs text-slate-400 mt-2">Quét mã QR bằng ứng dụng ngân hàng</p>
               </div>
 
               {/* Bank details */}
@@ -563,16 +564,17 @@ function QRCreateModal({ open, onClose, onSuccess }: {
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-amber-400 flex items-center justify-center">
-                      <span className="text-white font-black text-[9px]">MB</span>
+                      <span className="text-white font-black text-[9px]">QR</span>
                     </div>
-                    <p className="text-white text-xs font-bold uppercase tracking-wider">MBBank - Thong tin tai khoan</p>
+                    <p className="text-white text-xs font-bold uppercase tracking-wider">Thông tin tài khoản VietQR</p>
                   </div>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {[
-                    { label: "So tai khoan", value: "280605666888" },
-                    { label: "Ten tai khoan", value: "Nguyen Thai Son" },
-                    { label: "Noi dung CK", value: qrData.addInfo },
+                    { label: "Ngân hàng", value: qrData.bankId || "BIDV" },
+                    { label: "Số tài khoản", value: qrData.accountNo || "1231270139" },
+                    { label: "Tên tài khoản", value: qrData.accountName || "Trần Quốc Huy" },
+                    { label: "Nội dung CK", value: qrData.addInfo },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between px-4 py-3">
                       <span className="text-xs font-medium text-slate-400">{item.label}</span>

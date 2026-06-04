@@ -71,7 +71,9 @@ shared_data = {
     "day_off_id": None,            # Ngày nghỉ phép ID
     "conversation_id": None,       # Hội thoại ID
     "uploaded_image_id": None,     # ID ảnh tải lên
-    "payment_id": None             # Hóa đơn thanh toán ID
+    "payment_id": None,            # Hóa đơn thanh toán ID
+    "payment_amount": None,        # Số tiền hóa đơn
+    "payment_invoice_number": None # Mã hóa đơn thanh toán
 }
 
 from datetime import timedelta
@@ -530,7 +532,9 @@ def create_payment():
     success, res = run_api_step("POST", "/payments", payload=payload, headers=get_headers("doctor"), expected_status=201)
     if success and res and res.get("success") and res.get("data"):
         shared_data["payment_id"] = res["data"]["_id"]
-        print(f"    [Dynamic Data] Created Payment ID: {shared_data['payment_id']}")
+        shared_data["payment_amount"] = res["data"].get("amount") or 250000
+        shared_data["payment_invoice_number"] = res["data"].get("invoiceNumber")
+        print(f"    [Dynamic Data] Created Payment ID: {shared_data['payment_id']}, Invoice: {shared_data['payment_invoice_number']}")
         return True, "Bác sĩ lập hóa đơn thanh toán thành công cho bệnh nhân."
     return False, "Failed to create payment invoice"
 
@@ -557,10 +561,10 @@ def update_payment_invoice():
     return False, "Failed to update payment"
 
 def generate_qr_payment():
-    if not shared_data.get("payment_id"):
-        return False, "No payment ID"
     payload = {
-        "paymentId": shared_data["payment_id"]
+        "amount": shared_data.get("payment_amount") or 250000,
+        "invoiceNumber": shared_data.get("payment_invoice_number") or "INV-TEST",
+        "description": "Thanh toan hoa don phong kham nha khoa VinaMec"
     }
     success, res = run_api_step("POST", "/payments/qr/generate", payload=payload, headers=get_headers("patient"), expected_status=200)
     if success:
@@ -577,6 +581,18 @@ def confirm_qr_payment():
     if success:
         return True, "Xác nhận đã nhận chuyển khoản ngân hàng qua QR thành công."
     return False, "Failed to confirm QR payment"
+
+def reset_payment_status():
+    if not shared_data.get("payment_id"):
+        return False, "No payment ID"
+    endpoint = f"/payments/{shared_data['payment_id']}"
+    payload = {
+        "status": "pending"
+    }
+    success, res = run_api_step("PUT", endpoint, payload=payload, headers=get_headers("doctor"), expected_status=200)
+    if success:
+        return True, "Khôi phục trạng thái hóa đơn về chờ thanh toán."
+    return False, "Failed to reset status"
 
 def confirm_manual_payment():
     if not shared_data.get("payment_id"):
@@ -974,6 +990,13 @@ sheets_spec = {
             "steps": [
                 {
                     "step_num": 1,
+                    "perform": "Doctor khôi phục trạng thái hóa đơn về chờ thanh toán qua PUT /payments/:id.",
+                    "step_expected": "Trạng thái hóa đơn chuyển về pending thành công (HTTP 200).",
+                    "input_val": "Payment ID",
+                    "action": None
+                },
+                {
+                    "step_num": 2,
                     "perform": "Admin gửi yêu cầu POST đến /payments/confirm để xác nhận tiền mặt.",
                     "step_expected": "Hệ thống chuyển trạng thái hóa đơn thành paid thành công (HTTP 200).",
                     "input_val": "Payment ID\nMethod: cash",
@@ -1791,7 +1814,8 @@ chronological_steps = [
     ("Bệnh nhân", "TC_PAT_17", 1, lambda: run_api_step("GET", "/payments/me", headers=get_headers("patient"), expected_status=200)),
     ("Bệnh nhân", "TC_PAT_18", 1, generate_qr_payment),
     ("Bác sĩ", "TC_DOC_27", 1, confirm_qr_payment),
-    ("Admin", "TC_ADM_20", 1, confirm_manual_payment),
+    ("Admin", "TC_ADM_20", 1, reset_payment_status),
+    ("Admin", "TC_ADM_20", 2, confirm_manual_payment),
     ("Admin", "TC_ADM_21", 1, delete_payment),
     
     # Bác sĩ dọn dẹp ảnh X-quang răng sau kiểm thử
@@ -1927,7 +1951,10 @@ def execute_test_suite():
             elif "tc_adm_19" in desc:
                 actual_log = "Hệ thống xóa lịch nghỉ phép thành công."
             elif "tc_adm_20" in desc:
-                actual_log = "Xác nhận hóa đơn đã trả bằng tiền mặt thành công."
+                if step_num == 1:
+                    actual_log = "Khôi phục trạng thái hóa đơn về chờ thanh toán thành công."
+                else:
+                    actual_log = "Xác nhận hóa đơn đã trả bằng tiền mặt thành công."
             elif "tc_adm_21" in desc:
                 actual_log = "Xóa hóa đơn thanh toán thành công khỏi hệ thống."
             elif "tc_doc_11" in desc:

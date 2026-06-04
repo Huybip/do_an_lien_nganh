@@ -811,6 +811,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
   const [qrLoading, setQrLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingTrans, setCheckingTrans] = useState(false);
+  const [activeMethod, setActiveMethod] = useState(payment.method);
 
   const change = cashReceived && !isNaN(Number(cashReceived))
     ? Math.max(0, Number(cashReceived) - payment.amount)
@@ -822,18 +823,19 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     setQrData(null);
     setQrLoading(false);
     setCheckingTrans(false);
+    setActiveMethod(payment.method);
   }, [payment]);
 
   // Generate QR for bank_transfer pending payments
   useEffect(() => {
-    if (open && payment.method === "bank_transfer" && payment.status === "pending" && !qrData && !qrLoading) {
+    if (open && activeMethod === "bank_transfer" && status === "pending" && !qrData && !qrLoading) {
       setQrLoading(true);
       paymentApi.generateQR({ amount: payment.amount, invoiceNumber: payment.invoiceNumber })
         .then((res) => { if (res.data?.success) setQrData(res.data.data); })
         .catch(() => {})
         .finally(() => setQrLoading(false));
     }
-  }, [open]);
+  }, [open, activeMethod, status]);
 
   // Poll in background
   useEffect(() => {
@@ -856,12 +858,12 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
   const handleConfirmPayment = async () => {
     setLoading(true);
     try {
-      await paymentApi.update(payment._id, { status: "paid" });
+      await paymentApi.update(payment._id, { status: "paid", method: "bank_transfer" });
       alert("Xác nhận thanh toán thành công!");
       setStatus("paid");
       onUpdated();
       if (window.confirm("Bạn có muốn in hoá đơn thanh toán không?")) {
-        handlePrintInvoice({ ...payment, status: "paid", paidAt: new Date().toISOString() });
+        handlePrintInvoice({ ...payment, status: "paid", method: "bank_transfer", paidAt: new Date().toISOString() });
       }
       onClose();
     } catch (err: any) {
@@ -897,13 +899,14 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     try {
       await paymentApi.update(payment._id, {
         status: "paid",
+        method: "cash",
         notes: updatedNotes,
       });
       alert(`Thanh toán thành công!\nTiền nhận: ${received.toLocaleString("vi-VN")} đ\nTiền thừa trả lại: ${change?.toLocaleString("vi-VN")} đ`);
       setStatus("paid");
       onUpdated();
       if (window.confirm("Bạn có muốn in hoá đơn thanh toán không?")) {
-        handlePrintInvoice({ ...payment, status: "paid", notes: updatedNotes, paidAt: new Date().toISOString() });
+        handlePrintInvoice({ ...payment, status: "paid", method: "cash", notes: updatedNotes, paidAt: new Date().toISOString() });
       }
       onClose();
     } catch (err: any) {
@@ -1051,19 +1054,48 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
           ) : (
             /* PENDING — show payment action based on method */
             <div className="space-y-4">
+              {/* Payment Method Selector Tabs */}
+              <div className="flex gap-1.5 p-1 bg-slate-100/80 border border-slate-200/50 rounded-2xl shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMethod("cash");
+                    setCashReceived("");
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                    activeMethod === "cash"
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  }`}
+                >
+                  💵 Tiền mặt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMethod("bank_transfer")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                    activeMethod === "bank_transfer"
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  }`}
+                >
+                  🏦 Chuyển khoản VietQR
+                </button>
+              </div>
+
               {/* CASH — input received amount */}
-              {payment.method === "cash" && (
+              {activeMethod === "cash" && (
                 <div className="space-y-3">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center">
                         <span className="text-white font-black text-sm">C</span>
                       </div>
-                      <p className="font-bold text-amber-800 text-sm">Thanh toan tien mat</p>
+                      <p className="font-bold text-amber-800 text-sm">Thanh toán tiền mặt</p>
                     </div>
 
                     <div className="mb-3">
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">So tien nhan (VND)</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Số tiền nhận (VND)</label>
                       <input
                         type="number"
                         min={0}
@@ -1076,7 +1108,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
 
                     {change !== null && (
                       <div className="flex justify-between items-center bg-white border border-amber-300 rounded-xl px-4 py-3">
-                        <span className="text-sm text-slate-600">Tien thua tra lai</span>
+                        <span className="text-sm text-slate-600">Tiền thừa trả lại</span>
                         <span className="text-lg font-black text-emerald-600">{change.toLocaleString("vi-VN")} VND</span>
                       </div>
                     )}
@@ -1087,14 +1119,14 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
                       className="w-full mt-3 py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:-translate-y-0.5 disabled:opacity-50"
                       style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
                     >
-                      {loading ? "Dang xu ly..." : `Xac nhan thanh toan ${payment.amount.toLocaleString("vi-VN")} VND`}
+                      {loading ? "Đang xử lý..." : `Xác nhận thanh toán ${payment.amount.toLocaleString("vi-VN")} VND`}
                     </button>
                   </div>
                 </div>
               )}
 
               {/* BANK TRANSFER — QR code */}
-              {payment.method === "bank_transfer" && (
+              {activeMethod === "bank_transfer" && (
                 <div className="space-y-3">
                   <div className="bg-white border border-slate-200 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
@@ -1109,9 +1141,9 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
                     ) : qrData ? (
                       <div className="space-y-3">
                         {/* QR Code */}
-                        <div className="bg-white rounded-xl p-3 text-center border border-slate-200 relative">
-                          <img src={qrData.qrDataUrl} alt="QR" className="w-48 h-48 mx-auto rounded-xl animate-scale-in" />
-                          <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none rounded-xl mx-auto w-48 h-48" />
+                        <div className="bg-white rounded-xl p-3 text-center border border-slate-200 relative animate-scale-in">
+                          <img src={qrData.qrDataUrl} alt="QR" className="w-72 h-72 mx-auto rounded-xl" />
+                          <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none rounded-xl mx-auto w-72 h-72" />
                           <p className="text-xs text-slate-400 mt-2">Quét mã QR bằng ứng dụng ngân hàng</p>
                         </div>
 
@@ -1180,11 +1212,11 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
               )}
 
               {/* OTHER METHODS — manual status update */}
-              {(payment.method !== "cash" && payment.method !== "bank_transfer") && (
+              {(activeMethod !== "cash" && activeMethod !== "bank_transfer") && (
                 <div className="space-y-3">
                   <div className="bg-slate-50 rounded-xl p-4">
                     <p className="text-sm text-slate-600 mb-3">
-                      Phuong thuc thanh toan: <strong>{methodLabels[payment.method]}</strong>
+                      Phương thức thanh toán: <strong>{methodLabels[activeMethod] || activeMethod}</strong>
                     </p>
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       {["paid", "pending", "cancelled"].map((s) => (

@@ -283,7 +283,7 @@ export default function AdminShifts() {
     {
       key: "date",
       header: "Ngày nghỉ",
-      render: (d: any) => <span className="font-semibold text-slate-700 text-sm font-mono">{d.date}</span>,
+      render: (d: any) => <span className="font-bold text-slate-800 text-base font-mono">{d.date}</span>,
     },
     {
       key: "target",
@@ -291,14 +291,14 @@ export default function AdminShifts() {
       render: (d: any) => {
         if (d.doctor) {
           return (
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">BS</span>
-              <span className="text-sm font-medium text-slate-600">Bác sĩ: {d.doctorName || d.doctor?.name || "Bác sĩ"}</span>
+            <div className="flex items-center gap-2.5">
+              <span className="w-7.5 h-7.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-black flex items-center justify-center shadow-sm">BS</span>
+              <span className="text-base font-semibold text-slate-700">Bác sĩ: {d.doctorName || d.doctor?.name || "Bác sĩ"}</span>
             </div>
           );
         }
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-100 shadow-sm">
             🏥 Toàn bộ phòng khám
           </span>
         );
@@ -307,7 +307,7 @@ export default function AdminShifts() {
     {
       key: "description",
       header: "Lý do / Mô tả",
-      render: (d: any) => <span className="text-sm text-slate-500">{d.description || "Nghỉ lễ/hội nghị"}</span>,
+      render: (d: any) => <span className="text-base font-medium text-slate-600">{d.description || "Nghỉ lễ/hội nghị"}</span>,
     },
     {
       key: "actions",
@@ -315,7 +315,7 @@ export default function AdminShifts() {
       render: (d: any) => (
         <button
           onClick={() => handleDeleteDayOff(d.id || d._id)}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition">
+          className="px-4.5 py-2 text-sm font-bold rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition shadow-sm border border-red-100 hover:scale-105 active:scale-95 duration-150">
           Xóa
         </button>
       ),

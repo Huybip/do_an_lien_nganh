@@ -221,14 +221,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/doctor/payments"
-        element={
-          <ProtectedRoute allowedRoles={["doctor"]}>
-            <DoctorPayments />
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/doctor/chat"
         element={
