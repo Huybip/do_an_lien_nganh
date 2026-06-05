@@ -722,8 +722,8 @@ export default function AdminSalary() {
         {/* Header */}
         <div className="glass-header sticky top-0 z-10 px-6 lg:px-8 py-4 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Quản lý lương Bác sĩ (UC4)</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Phòng khám nha khoa Smart Dental</p>
+            <h1 className="text-2xl font-bold text-slate-800">Quản lý lương Bác sĩ</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Phòng khám nha khoa Smart Dental</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
@@ -736,10 +736,10 @@ export default function AdminSalary() {
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
           {/* LEFT SUBMENU PANEL (2-level hierarchy) */}
-          <div className="w-full md:w-64 bg-white/60 backdrop-blur border-r border-slate-200/80 p-5 space-y-5">
+          <div className="w-full md:w-64 bg-white/60 backdrop-blur border-r border-slate-200/80 p-4.5 space-y-6">
             {menuConfig.map((cat) => (
-              <div key={cat.category} className="space-y-1.5">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2.5">
+              <div key={cat.category} className="space-y-2">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-2.5">
                   {cat.category}
                 </p>
                 <div className="space-y-1">
@@ -749,14 +749,14 @@ export default function AdminSalary() {
                       <button
                         key={item.id}
                         onClick={() => setActiveMenu(item.id)}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-between ${
+                        className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-between ${
                           isActive
                             ? "text-white shadow-md bg-gradient-to-r from-sky-500 to-blue-600"
                             : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-800"
                         }`}
                       >
                         <span>{item.label}</span>
-                        {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                        {isActive && <span className="w-2 h-2 rounded-full bg-white animate-pulse" />}
                       </button>
                     );
                   })}
@@ -765,11 +765,11 @@ export default function AdminSalary() {
             ))}
 
             {/* Quick Scenario solvers box */}
-            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-4 space-y-3 mt-5">
-              <p className="text-xs font-bold text-violet-800 flex items-center gap-1.5">
+            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-4.5 space-y-3.5 mt-5">
+              <p className="text-sm font-bold text-violet-800 flex items-center gap-1.5">
                 💡 Trình tính nhanh đề bài
               </p>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 Tự động điền dữ liệu theo 2 trường hợp tính lương mẫu trong đề bài buổi học.
               </p>
               <div className="space-y-2">
@@ -778,7 +778,7 @@ export default function AdminSalary() {
                     setActiveMenu("uc4_4");
                     handleQuickSeedCase(1);
                   }}
-                  className="w-full py-1.5 bg-white border border-violet-200 rounded-lg text-[10px] font-bold text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition"
+                  className="w-full py-2 bg-white border border-violet-200 rounded-lg text-xs font-bold text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition"
                 >
                   Trường hợp 1: Đại học (756k)
                 </button>
@@ -787,7 +787,7 @@ export default function AdminSalary() {
                     setActiveMenu("uc4_4");
                     handleQuickSeedCase(2);
                   }}
-                  className="w-full py-1.5 bg-white border border-violet-200 rounded-lg text-[10px] font-bold text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition"
+                  className="w-full py-2 bg-white border border-violet-200 rounded-lg text-xs font-bold text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition"
                 >
                   Trường hợp 2: Giáo sư (2,520k)
                 </button>
@@ -796,11 +796,11 @@ export default function AdminSalary() {
           </div>
 
           {/* RIGHT DETAIL WORKSPACE */}
-          <div className="flex-1 p-6 lg:p-8 overflow-y-auto space-y-6">
+          <div className="flex-1 p-4 lg:p-6 overflow-y-auto space-y-6">
 
             {/* UC4.1: Hourly wage setting */}
             {activeMenu === "uc4_1" && (
-              <div className="card p-6 border border-slate-100 max-w-xl animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 max-w-2xl animate-fade-in space-y-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white text-2xl shadow-lg">
                     💰
@@ -845,7 +845,7 @@ export default function AdminSalary() {
 
             {/* UC4.2: Day of week coefficients */}
             {activeMenu === "uc4_2" && (
-              <div className="card p-6 border border-slate-100 max-w-4xl animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 max-w-5xl animate-fade-in space-y-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-white text-2xl shadow-lg">
                     📅
@@ -921,7 +921,7 @@ export default function AdminSalary() {
 
             {/* UC4.3: Patient difficulty */}
             {activeMenu === "uc4_3" && (
-              <div className="card p-6 border border-slate-100 max-w-xl animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 max-w-2xl animate-fade-in space-y-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white text-2xl shadow-lg">
                     🦷
@@ -965,23 +965,23 @@ export default function AdminSalary() {
 
             {/* UC4.4: Salary Slip and Calculator */}
             {activeMenu === "uc4_4" && (
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fade-in">
+              <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
                 
-                {/* Salary Slip Generator (Left 2 cols) */}
-                <div className="xl:col-span-2 space-y-6">
+                {/* Salary Slip Generator (Left 3 cols on xl) */}
+                <div className="lg:col-span-2 xl:col-span-3 space-y-6">
                   <div className="card p-6 border border-slate-100 space-y-5">
                     
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                       <div>
-                        <h3 className="font-bold text-slate-800 text-lg">Phiếu chi trả lương Bác sĩ</h3>
-                        <p className="text-xs text-slate-400">Danh sách các ca trực và chi tiết tính lương</p>
+                        <h3 className="font-bold text-slate-800 text-xl">Phiếu chi trả lương Bác sĩ</h3>
+                        <p className="text-sm text-slate-500">Danh sách các ca trực và chi tiết tính lương</p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Month */}
                         <select
                           value={filterMonth}
                           onChange={(e) => setFilterMonth(Number(e.target.value))}
-                          className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50"
+                          className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                         >
                           {Array.from({ length: 12 }, (_, i) => (
                             <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
@@ -991,7 +991,7 @@ export default function AdminSalary() {
                         <select
                           value={filterDoctorId}
                           onChange={(e) => setFilterDoctorId(e.target.value)}
-                          className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50"
+                          className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                         >
                           {doctorsList.map((d) => (
                             <option key={d.id || d._id} value={d.id || d._id}>Dr. {d.name}</option>
@@ -999,7 +999,7 @@ export default function AdminSalary() {
                         </select>
                         <button
                           onClick={handlePrintSlip}
-                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border rounded-xl text-xs font-bold text-slate-700 transition"
+                          className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 border rounded-xl text-sm font-bold text-slate-700 transition"
                         >
                           🖨️ In phiếu lương
                         </button>
@@ -1008,18 +1008,18 @@ export default function AdminSalary() {
 
                     {/* Active Doctor profile card */}
                     {activeDoctorInfo && (
-                      <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 rounded-2xl p-4 grid grid-cols-2 gap-4 text-xs">
+                      <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 rounded-2xl p-5 grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-slate-400 font-semibold uppercase">Bác sĩ</p>
-                          <p className="font-bold text-slate-700 text-sm mt-0.5">Dr. {activeDoctorInfo.name}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Mã số: #{activeDoctorInfo.id?.slice(-6) || "BS"}</p>
+                          <p className="text-slate-400 font-semibold uppercase text-xs">Bác sĩ</p>
+                          <p className="font-bold text-slate-700 text-base mt-0.5">Dr. {activeDoctorInfo.name}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Mã số: #{activeDoctorInfo.id?.slice(-6) || "BS"}</p>
                         </div>
                         <div>
-                          <p className="text-slate-400 font-semibold uppercase">Học hàm/Bằng cấp</p>
+                          <p className="text-slate-400 font-semibold uppercase text-xs">Học hàm/Bằng cấp</p>
                           <select
                             value={activeDoctorDegree}
                             onChange={(e) => handleDoctorDegreeChange(activeDoctorInfo.id || activeDoctorInfo._id, e.target.value)}
-                            className="mt-0.5 font-bold text-sky-700 bg-transparent border-b border-sky-300 focus:outline-none py-0.5"
+                            className="mt-0.5 font-bold text-sky-700 bg-transparent border-b border-sky-300 focus:outline-none py-0.5 text-sm"
                           >
                             <option value="Đại học">Đại học (Hệ số: 1.2)</option>
                             <option value="Thạc sỹ">Thạc sỹ (Hệ số: 1.5)</option>
@@ -1032,35 +1032,35 @@ export default function AdminSalary() {
                     )}
 
                     {/* Summary row */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-4">
                       {[
-                        { label: "Tổng ca trực", value: doctorMonthlySummary.shifts, suffix: "ca", color: "text-slate-700" },
-                        { label: "Số giờ làm thêm", value: doctorMonthlySummary.equivHours.toFixed(2), suffix: "giờ QĐ", color: "text-sky-600" },
-                        { label: "Thực nhận", value: doctorMonthlySummary.totalAmount.toLocaleString("vi-VN"), suffix: "đ", color: "text-emerald-600 font-black text-lg" }
+                        { label: "Tổng ca trực", value: doctorMonthlySummary.shifts, suffix: "ca", color: "text-slate-700 text-lg" },
+                        { label: "Số giờ làm thêm", value: doctorMonthlySummary.equivHours.toFixed(2), suffix: "giờ QĐ", color: "text-sky-600 text-lg" },
+                        { label: "Thực nhận", value: doctorMonthlySummary.totalAmount.toLocaleString("vi-VN"), suffix: "đ", color: "text-emerald-600 font-black text-2xl" }
                       ].map((sum, index) => (
-                        <div key={index} className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 text-center">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sum.label}</p>
-                          <p className={`text-base font-bold mt-1 ${sum.color}`}>
+                        <div key={index} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{sum.label}</p>
+                          <p className={`font-bold mt-1.5 ${sum.color}`}>
                             {sum.value}
-                            <span className="text-xs font-normal ml-0.5">{sum.suffix}</span>
+                            <span className="text-sm font-normal ml-0.5">{sum.suffix}</span>
                           </p>
                         </div>
                       ))}
                     </div>
 
                     {/* Sessions Table */}
-                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                      <table className="w-full text-xs text-left">
+                    <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                      <table className="w-full text-sm text-left">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
-                            <th className="px-4 py-3">Ngày</th>
-                            <th className="px-4 py-3">Ca &amp; Giờ</th>
-                            <th className="px-4 py-3 text-center">Hệ số ca</th>
-                            <th className="px-4 py-3 text-center">Số BN</th>
-                            <th className="px-4 py-3 text-center">HS khó</th>
-                            <th className="px-4 py-3 text-center">Giờ QĐ</th>
-                            <th className="px-4 py-3 text-right">Thành tiền</th>
-                            <th className="px-4 py-3 text-center">Xóa</th>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+                            <th className="px-4 py-3.5">Ngày</th>
+                            <th className="px-4 py-3.5">Ca &amp; Giờ</th>
+                            <th className="px-4 py-3.5 text-center">Hệ số ca</th>
+                            <th className="px-4 py-3.5 text-center">Số BN</th>
+                            <th className="px-4 py-3.5 text-center">HS khó</th>
+                            <th className="px-4 py-3.5 text-center">Giờ QĐ</th>
+                            <th className="px-4 py-3.5 text-right">Thành tiền</th>
+                            <th className="px-4 py-3.5 text-center">Xóa</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1073,17 +1073,17 @@ export default function AdminSalary() {
                           ) : (
                             doctorMonthlySessions.map((s) => (
                               <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                                <td className="px-4 py-3 font-semibold text-slate-600">{s.date}</td>
-                                <td className="px-4 py-3 text-slate-600">{s.shiftName}</td>
-                                <td className="px-4 py-3 text-center font-semibold text-slate-600">{s.shiftMultiplier}</td>
-                                <td className="px-4 py-3 text-center text-slate-500">{s.patients.length}</td>
-                                <td className="px-4 py-3 text-center text-slate-500">{s.totalDifficulty}</td>
-                                <td className="px-4 py-3 text-center font-bold text-sky-600">{s.equivalentHours}</td>
-                                <td className="px-4 py-3 text-right font-bold text-slate-700">{s.amount.toLocaleString("vi-VN")} đ</td>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-4 py-3.5 font-semibold text-slate-700">{s.date}</td>
+                                <td className="px-4 py-3.5 text-slate-700">{s.shiftName}</td>
+                                <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{s.shiftMultiplier}</td>
+                                <td className="px-4 py-3.5 text-center text-slate-600">{s.patients.length}</td>
+                                <td className="px-4 py-3.5 text-center text-slate-600">{s.totalDifficulty}</td>
+                                <td className="px-4 py-3.5 text-center font-bold text-sky-600">{s.equivalentHours}</td>
+                                <td className="px-4 py-3.5 text-right font-bold text-slate-800">{s.amount.toLocaleString("vi-VN")} đ</td>
+                                <td className="px-4 py-3.5 text-center">
                                   <button
                                     onClick={() => handleDeleteSession(s.id)}
-                                    className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold flex items-center justify-center mx-auto transition"
+                                    className="w-6.5 h-6.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center mx-auto transition"
                                   >
                                     ✕
                                   </button>
@@ -1101,16 +1101,16 @@ export default function AdminSalary() {
                 <div className="space-y-6">
                   <form onSubmit={handleSaveSession} className="card p-6 border border-slate-100 space-y-4">
                     <div className="border-b pb-2">
-                      <h4 className="font-bold text-slate-800 text-sm">Thêm ca làm việc thực tế</h4>
-                      <p className="text-[10px] text-slate-400">Tự nhập thông tin để tính tiền thanh toán ca</p>
+                      <h4 className="font-bold text-slate-800 text-base">Thêm ca làm việc thực tế</h4>
+                      <p className="text-xs text-slate-500">Tự nhập thông tin để tính tiền thanh toán ca</p>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Chọn Bác sĩ</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Chọn Bác sĩ</label>
                       <select
                         value={selectedDoctorId}
                         onChange={(e) => setSelectedDoctorId(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500 bg-slate-50"
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-500 bg-slate-50"
                         required
                       >
                         <option value="">Chọn bác sĩ...</option>
@@ -1124,21 +1124,21 @@ export default function AdminSalary() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Ngày làm việc</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Ngày làm việc</label>
                         <input
                           type="date"
                           value={sessionDate}
                           onChange={(e) => setSessionDate(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500 bg-slate-50"
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-500 bg-slate-50"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Phân loại ca</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Phân loại ca</label>
                         <select
                           value={sessionShiftType}
                           onChange={(e) => setSessionShiftType(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500 bg-slate-50"
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-500 bg-slate-50"
                         >
                           <option value="morning">Sáng (8h-12h)</option>
                           <option value="afternoon">Chiều (13h-17h)</option>
@@ -1149,26 +1149,26 @@ export default function AdminSalary() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Giờ Bắt đầu</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Giờ Bắt đầu</label>
                         <input
                           type="number"
                           min="0"
                           max="23"
                           value={sessionStartHour}
                           onChange={(e) => setSessionStartHour(Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500 text-center bg-slate-50"
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-500 text-center bg-slate-50"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Giờ Kết thúc</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Giờ Kết thúc</label>
                         <input
                           type="number"
                           min="0"
                           max="23"
                           value={sessionEndHour}
                           onChange={(e) => setSessionEndHour(Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500 text-center bg-slate-50"
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-500 text-center bg-slate-50"
                           required
                         />
                       </div>
@@ -1177,11 +1177,11 @@ export default function AdminSalary() {
                     {/* Patient list row inputs */}
                     <div className="space-y-2 border-t pt-2">
                       <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Danh sách bệnh nhân</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Danh sách bệnh nhân</label>
                         <button
                           type="button"
                           onClick={addPatientRow}
-                          className="text-[10px] font-bold text-sky-600 hover:text-sky-800"
+                          className="text-xs font-bold text-sky-600 hover:text-sky-800"
                         >
                           + Thêm BN
                         </button>
@@ -1198,7 +1198,7 @@ export default function AdminSalary() {
                               list[idx].name = e.target.value;
                               setSessionPatients(list);
                             }}
-                            className="flex-1 px-2 py-1 border rounded text-[10px] focus:outline-none focus:border-sky-500"
+                            className="flex-1 px-2.5 py-1.5 border rounded text-xs focus:outline-none focus:border-sky-500"
                             required
                           />
                           <select
@@ -1208,7 +1208,7 @@ export default function AdminSalary() {
                               list[idx].difficulty = Number(e.target.value);
                               setSessionPatients(list);
                             }}
-                            className="px-1 py-1 border rounded text-[10px] focus:outline-none"
+                            className="px-1 py-1.5 border rounded text-xs focus:outline-none"
                           >
                             <option value="0.0">Normal (0)</option>
                             <option value="0.2">Medium (0.2)</option>
@@ -1230,8 +1230,8 @@ export default function AdminSalary() {
 
                     {/* Real-time Math calculation viewer */}
                     {selectedDoctorId && (
-                      <div className="bg-violet-50/70 border border-violet-100 rounded-xl p-3.5 text-xs text-violet-900 space-y-1">
-                        <p className="font-bold text-violet-800 text-[11px] mb-1">📐 Chi tiết công thức tính:</p>
+                      <div className="bg-violet-50/70 border border-violet-100 rounded-xl p-4 text-sm text-violet-900 space-y-1.5">
+                        <p className="font-bold text-violet-800 text-xs mb-1">📐 Chi tiết công thức tính:</p>
                         {(() => {
                           const degree = doctorDegrees[selectedDoctorId] || "Đại học";
                           const docCoeff = degreeCoefficients[degree] || 1.2;
@@ -1244,13 +1244,13 @@ export default function AdminSalary() {
                           const totalAmt = equivH * docCoeff * basicHourlyRate;
 
                           return (
-                            <div className="space-y-1 leading-relaxed text-[11px] font-medium">
+                            <div className="space-y-1.5 leading-relaxed text-xs font-medium">
                               <p>• Trình độ: <span className="font-bold">{degree}</span> (Hệ số: {docCoeff})</p>
                               <p>• Số giờ mỗi ca: {sessionEndHour}h - {sessionStartHour}h = <span className="font-bold">{hours}h</span></p>
                               <p>• Hệ số ca ({getDayOfWeekLabel(sessionDate)}): <span className="font-bold">{shiftMult}</span></p>
                               <p>• Tổng độ khó BN: <span className="font-bold">{totalDiff.toFixed(1)}</span></p>
                               <p>• Số giờ quy đổi: <code>{hours} * ({shiftMult} + {totalDiff.toFixed(1)}) = {equivH.toFixed(2)} giờ</code></p>
-                              <p className="text-violet-950 font-bold border-t border-violet-200/60 pt-1 mt-1 text-xs">
+                              <p className="text-violet-950 font-bold border-t border-violet-200/60 pt-1.5 mt-1.5 text-xs sm:text-sm">
                                 =&gt; Lương ca: <code>{equivH.toFixed(2)} * {docCoeff} * {basicHourlyRate.toLocaleString("vi-VN")} đ = {Math.round(totalAmt).toLocaleString("vi-VN")} đ</code>
                               </p>
                             </div>
@@ -1261,7 +1261,7 @@ export default function AdminSalary() {
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-xl text-xs hover:-translate-y-0.5 hover:shadow-lg transition-all"
+                      className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-xl text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
                     >
                       Lưu và cộng vào phiếu lương
                     </button>
@@ -1276,14 +1276,14 @@ export default function AdminSalary() {
               <div className="card p-6 border border-slate-100 animate-fade-in space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-lg">Báo cáo tiền lương tất cả bác sĩ</h3>
-                    <p className="text-xs text-slate-400">Tổng hợp thu nhập thanh toán trong tháng</p>
+                    <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương tất cả bác sĩ</h3>
+                    <p className="text-sm text-slate-500">Tổng hợp thu nhập thanh toán trong tháng</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <select
                       value={filterMonth}
                       onChange={(e) => setFilterMonth(Number(e.target.value))}
-                      className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50 animate-scale-in"
+                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50 animate-scale-in"
                     >
                       {Array.from({ length: 12 }, (_, i) => (
                         <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
@@ -1292,7 +1292,7 @@ export default function AdminSalary() {
                     <select
                       value={filterYear}
                       onChange={(e) => setFilterYear(Number(e.target.value))}
-                      className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50"
+                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
                       <option value={2026}>Năm 2026</option>
                     </select>
@@ -1310,7 +1310,7 @@ export default function AdminSalary() {
                         a.download = `luong-thang-${filterMonth}-${filterYear}.csv`;
                         a.click();
                       }}
-                      className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition"
+                      className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold transition"
                     >
                       📥 Xuất báo cáo CSV
                     </button>
@@ -1337,7 +1337,7 @@ export default function AdminSalary() {
                           <td className="px-6 py-4 font-semibold text-sky-600">{d.degree}</td>
                           <td className="px-6 py-4 text-center font-medium text-slate-600">{d.shifts}</td>
                           <td className="px-6 py-4 text-center font-bold text-indigo-500">{d.equivHours}</td>
-                          <td className="px-6 py-4 text-right font-black text-emerald-600 text-base">
+                          <td className="px-6 py-4 text-right font-black text-emerald-600 text-lg">
                             {d.totalAmount.toLocaleString("vi-VN")} đ
                           </td>
                         </tr>
@@ -1353,14 +1353,14 @@ export default function AdminSalary() {
               <div className="card p-6 border border-slate-100 animate-fade-in space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-lg">Báo cáo tiền lương năm của Bác sĩ</h3>
-                    <p className="text-xs text-slate-400">Theo dõi xu hướng thu nhập 12 tháng của bác sĩ</p>
+                    <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương năm của Bác sĩ</h3>
+                    <p className="text-sm text-slate-500">Theo dõi xu hướng thu nhập 12 tháng của bác sĩ</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <select
                       value={filterDoctorId}
                       onChange={(e) => setFilterDoctorId(e.target.value)}
-                      className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50"
+                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
                       {doctorsList.map((d) => (
                         <option key={d.id || d._id} value={d.id || d._id}>Dr. {d.name}</option>
@@ -1369,7 +1369,7 @@ export default function AdminSalary() {
                     <select
                       value={filterYear}
                       onChange={(e) => setFilterYear(Number(e.target.value))}
-                      className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50"
+                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
                       <option value={2026}>Năm 2026</option>
                     </select>
@@ -1378,7 +1378,7 @@ export default function AdminSalary() {
 
                 {/* Graph component */}
                 <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Biểu đồ xu hướng thu nhập năm {filterYear}</h4>
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ xu hướng thu nhập năm {filterYear}</h4>
                   <div style={{ height: "260px" }}>
                     <Line data={lineChartData} options={lineChartOptions} />
                   </div>
@@ -1386,9 +1386,9 @@ export default function AdminSalary() {
 
                 {/* Data Table */}
                 <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full text-sm text-left">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
+                      <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
                         <th className="px-4 py-3">Tháng</th>
                         <th className="px-4 py-3 text-center">Số ca trực</th>
                         <th className="px-4 py-3 text-center">Số giờ quy đổi (QĐ)</th>
@@ -1415,14 +1415,14 @@ export default function AdminSalary() {
               <div className="card p-6 border border-slate-100 animate-fade-in space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-lg">Báo cáo tiền lương so sánh tất cả bác sĩ</h3>
-                    <p className="text-xs text-slate-400">So sánh tổng thu nhập năm giữa các bác sĩ phòng khám</p>
+                    <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương so sánh tất cả bác sĩ</h3>
+                    <p className="text-sm text-slate-500">So sánh tổng thu nhập năm giữa các bác sĩ phòng khám</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <select
                       value={filterYear}
                       onChange={(e) => setFilterYear(Number(e.target.value))}
-                      className="px-3 py-2 border rounded-xl text-xs font-bold bg-slate-50"
+                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
                       <option value={2026}>Năm 2026</option>
                     </select>
@@ -1431,7 +1431,7 @@ export default function AdminSalary() {
 
                 {/* Graph component */}
                 <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Biểu đồ so sánh tổng thu nhập cả năm {filterYear}</h4>
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ so sánh tổng thu nhập cả năm {filterYear}</h4>
                   <div style={{ height: "260px" }}>
                     <Bar data={barChartData} options={barChartOptions} />
                   </div>
@@ -1439,9 +1439,9 @@ export default function AdminSalary() {
 
                 {/* Data Table */}
                 <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full text-sm text-left">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
+                      <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
                         <th className="px-4 py-3">Tên Bác sĩ</th>
                         <th className="px-4 py-3">Học hàm/Học vị</th>
                         <th className="px-4 py-3 text-right">Tổng thu nhập năm (VNĐ)</th>
@@ -1452,7 +1452,7 @@ export default function AdminSalary() {
                         <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
                           <td className="px-4 py-3 font-bold text-slate-700">Dr. {d.name}</td>
                           <td className="px-4 py-3 font-semibold text-sky-600">{d.degree}</td>
-                          <td className="px-4 py-3 text-right font-black text-emerald-600 text-sm">
+                          <td className="px-4 py-3 text-right font-black text-emerald-600 text-base">
                             {d.totalAmount.toLocaleString("vi-VN")} đ
                           </td>
                         </tr>

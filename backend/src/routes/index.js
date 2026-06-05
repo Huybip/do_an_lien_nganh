@@ -19,6 +19,7 @@ router.use("/chat", require("./chatRoutes"));
 router.use("/conversations", require("./conversationRoutes"));
 router.use("/predict", require("./predictionRoutes"));
 router.use("/voice", require("./voiceRoutes"));
+router.use("/salaries", require("./salaryRoutes"));
 
 // Health check
 router.get("/health", (req, res) => {
