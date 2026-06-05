@@ -21,6 +21,8 @@ import AdminShifts from "./pages/admin/AdminShifts";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminRecords from "./pages/admin/AdminRecords";
 import AdminCheckin from "./pages/admin/AdminCheckin"; 
+import AdminSalary from "./pages/admin/AdminSalary"; // Admin Salary Management
+
 
 // Doctor
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
@@ -30,7 +32,6 @@ import DoctorShifts from "./pages/doctor/DoctorShifts";
 import DoctorRecords from "./pages/doctor/DoctorRecords";
 import DoctorImages from "./pages/doctor/DoctorImages";
 import DoctorChat from "./pages/doctor/DoctorChat";
-import DoctorPayments from "./pages/doctor/DoctorPayments";
 import DoctorProfile from "./pages/doctor/DoctorProfile";
 
 // Patient
@@ -160,6 +161,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminCheckin />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/salary"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminSalary />
           </ProtectedRoute>
         }
       />
