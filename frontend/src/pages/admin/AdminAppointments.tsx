@@ -21,6 +21,38 @@ interface Patient {
   phone?: string;
 }
 
+const renderServiceBadges = (serviceName?: string, serviceNames?: string[], service?: any) => {
+  let list: string[] = [];
+  if (serviceNames && serviceNames.length > 0) {
+    list = serviceNames;
+  } else if (serviceName) {
+    list = serviceName.split(",").map(s => s.trim()).filter(Boolean);
+  } else {
+    const singleName = typeof service === "string" ? service : service?.name;
+    list = singleName ? [singleName] : ["Khám tổng quát"];
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {list.map((s, idx) => {
+        const colors = [
+          "bg-sky-50 text-sky-700 border-sky-100",
+          "bg-emerald-50 text-emerald-700 border-emerald-100",
+          "bg-violet-50 text-violet-700 border-violet-100",
+          "bg-amber-50 text-amber-700 border-amber-100",
+          "bg-rose-50 text-rose-700 border-rose-100",
+        ];
+        const colorClass = colors[idx % colors.length];
+        return (
+          <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${colorClass}`}>
+            {s}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
 export default function AdminAppointments() {
   const { data: appointments, loading, refetch } = useApi<Appointment[]>(() =>
     appointmentApi.getAll()
@@ -501,9 +533,7 @@ export default function AdminAppointments() {
               </div>
               <div className="p-4 bg-slate-50 rounded-xl col-span-2">
                 <p className="text-xs text-slate-400 mb-1">Dịch vụ</p>
-                <p className="font-semibold text-slate-700">
-                  {selected.serviceName || "—"}
-                </p>
+                {renderServiceBadges(selected.serviceName, selected.serviceNames, selected.service)}
               </div>
             </div>
             <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl">

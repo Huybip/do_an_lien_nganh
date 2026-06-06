@@ -1,6 +1,8 @@
 "use strict";
 
 const User = require("../models/User");
+const Doctor = require("../models/Doctor");
+const Patient = require("../models/Patient");
 const { sendSuccess, sendError, sendPaginated } = require("../utils/response");
 const { getPagination, buildSort } = require("../utils/pagination");
 
@@ -50,6 +52,25 @@ const create = async (req, res) => {
     if (existing) return sendError(res, 409, "Email already exists.");
 
     const user = await User.create(req.body);
+
+    // Auto-create matching role profiles to prevent orphans
+    if (user.role === "doctor") {
+      await Doctor.create({
+        user: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+        specialization: user.specialization || "General Dentistry",
+      });
+    } else if (user.role === "patient") {
+      await Patient.create({
+        user: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+      });
+    }
+
     return sendSuccess(res, 201, "User created", user);
   } catch (err) {
     // Handle Mongoose validation errors

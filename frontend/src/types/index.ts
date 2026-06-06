@@ -28,6 +28,7 @@ export interface Appointment {
   doctorName: string;
   service: Service | string;
   serviceName?: string;
+  serviceNames?: string[];
   date: string;
   time: string;
   status:

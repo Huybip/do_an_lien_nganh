@@ -26,6 +26,38 @@ const statusCounts = (appointments: Appointment[]) =>
     count: (appointments || []).filter((a) => a.status === key).length,
   })).filter((s) => s.count > 0);
 
+const renderServiceBadges = (serviceName?: string, serviceNames?: string[], service?: any) => {
+  let list: string[] = [];
+  if (serviceNames && serviceNames.length > 0) {
+    list = serviceNames;
+  } else if (serviceName) {
+    list = serviceName.split(",").map(s => s.trim()).filter(Boolean);
+  } else {
+    const singleName = typeof service === "string" ? service : service?.name;
+    list = singleName ? [singleName] : ["Khám tổng quát"];
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {list.map((s, idx) => {
+        const colors = [
+          "bg-sky-50 text-sky-700 border-sky-100",
+          "bg-emerald-50 text-emerald-700 border-emerald-100",
+          "bg-violet-50 text-violet-700 border-violet-100",
+          "bg-amber-50 text-amber-700 border-amber-100",
+          "bg-rose-50 text-rose-700 border-rose-100",
+        ];
+        const colorClass = colors[idx % colors.length];
+        return (
+          <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${colorClass}`}>
+            {s}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
 export default function PatientAppointment() {
   const { data: appointments, loading, refetch } = useApi<Appointment[]>(() => appointmentApi.getMine());
   const { data: services } = useApi<Service[]>(() => serviceApi.getAll());
@@ -162,26 +194,29 @@ export default function PatientAppointment() {
         {selectedAppointment && (
           <Modal open={!!selectedAppointment} onClose={() => setSelectedAppointment(null)} title="Chi tiết lịch khám">
             <div className="space-y-4">
-              {[
-                ["Bác sĩ phụ trách", `Dr. ${selectedAppointment.doctorName}`],
-                ["Dịch vụ đã chọn", selectedAppointment.serviceName || (typeof selectedAppointment.service === "string" ? selectedAppointment.service : selectedAppointment.service?.name) || "Khám tổng quát"],
-                ["Ngày khám", selectedAppointment.date],
-                [
-                  "Khung giờ khám",
-                  (() => {
-                    const type = (selectedAppointment as any).shiftType || "morning";
-                    const cfg = SHIFT_CONFIG[type as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
-                    return `${cfg.icon} ${cfg.label} (${cfg.range})`;
-                  })(),
-                ],
-                ["Phí dịch vụ", `${Number(selectedAppointment.fee || 0).toLocaleString("vi-VN")} ₫`],
-                ["Ghi chú khám", selectedAppointment.notes || "—"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 transition">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0 pt-1">{k}</span>
-                  <span className="text-sm font-semibold text-slate-700">{v}</span>
-                </div>
-              ))}
+              {(() => {
+                const items: Array<[string, React.ReactNode]> = [
+                  ["Bác sĩ phụ trách", `Dr. ${selectedAppointment.doctorName}`],
+                  ["Dịch vụ đã chọn", renderServiceBadges(selectedAppointment.serviceName, selectedAppointment.serviceNames, selectedAppointment.service)],
+                  ["Ngày khám", selectedAppointment.date],
+                  [
+                    "Khung giờ khám",
+                    (() => {
+                      const type = (selectedAppointment as any).shiftType || "morning";
+                      const cfg = SHIFT_CONFIG[type as keyof typeof SHIFT_CONFIG] || SHIFT_CONFIG.morning;
+                      return `${cfg.icon} ${cfg.label} (${cfg.range})`;
+                    })(),
+                  ],
+                  ["Phí dịch vụ", `${Number(selectedAppointment.fee || 0).toLocaleString("vi-VN")} ₫`],
+                  ["Ghi chú khám", selectedAppointment.notes || "—"],
+                ];
+                return items.map(([k, v]) => (
+                  <div key={k} className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 transition">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0 pt-1">{k}</span>
+                    <span className="text-sm font-semibold text-slate-700">{v}</span>
+                  </div>
+                ));
+              })()}
 
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trạng thái đặt lịch</p>
