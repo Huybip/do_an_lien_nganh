@@ -45,7 +45,7 @@ export default function AdminShifts() {
 
   // State arrays
   const { data: shifts, loading: shiftsLoading, refetch: refetchShifts } = useApi<any[]>(() => shiftApi.getAll());
-  const { data: doctors } = useApi<any[]>(() => doctorApi.getAll().then(res => res.data));
+  const { data: doctors } = useApi<any[]>(() => doctorApi.getAll());
   const [daysOff, setDaysOff] = useState<any[]>([]);
   const [daysOffLoading, setDaysOffLoading] = useState(false);
 
