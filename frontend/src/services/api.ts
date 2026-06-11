@@ -284,3 +284,21 @@ export const adminApi = {
     api.get(`/admin/activity${limit ? `?limit=${limit}` : ""}`),
   getSystemInfo: () => api.get("/admin/system"),
 };
+
+// ─── Salaries ────────────────────────────────────────────────────────────────
+export const salaryApi = {
+  calculate: (data: { doctorId: string; month: number; year: number; basicHourlyRate: number; degreeCoefficient: number }) =>
+    api.post("/salaries/calculate", data),
+  get: (doctorId: string, month: number, year: number) =>
+    api.get(`/salaries/${doctorId}/${month}/${year}`),
+  list: (params?: object) =>
+    api.get("/salaries", { params }),
+  approve: (id: string) =>
+    api.put(`/salaries/${id}/approve`),
+  markPaid: (id: string) =>
+    api.put(`/salaries/${id}/mark-paid`),
+  delete: (id: string) =>
+    api.delete(`/salaries/${id}`),
+  getSummary: (month: number, year: number) =>
+    api.get(`/salaries/summary/${month}/${year}`),
+};

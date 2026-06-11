@@ -61,6 +61,11 @@ const appointmentSchema = new mongoose.Schema(
     },
     notes: { type: String, trim: true },
     doctorNotes: { type: String, trim: true },
+    difficulty: {
+      type: Number,
+      default: 0.0,
+      enum: [0.0, 0.2, 0.3, 0.5]
+    },
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],

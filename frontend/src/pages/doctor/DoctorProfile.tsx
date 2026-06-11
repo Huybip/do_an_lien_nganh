@@ -12,6 +12,7 @@ interface DoctorProfileData {
   qualifications: string[];
   experience: number;
   bio: string;
+  degree?: string;
   workingHours: {
     monday:    { start: string; end: string; available: boolean };
     tuesday:   { start: string; end: string; available: boolean };
@@ -38,6 +39,7 @@ export default function DoctorProfile() {
     experience: 0,
     bio: "",
     qualifications: [] as string[],
+    degree: "Đại học",
     workingHours: {
       monday:    { start: "08:00", end: "17:00", available: true },
       tuesday:   { start: "08:00", end: "17:00", available: true },
@@ -67,6 +69,7 @@ export default function DoctorProfile() {
           experience: data.experience || 0,
           bio: data.bio || "",
           qualifications: Array.isArray(data.qualifications) ? data.qualifications : [],
+          degree: data.degree || "Đại học",
           workingHours: data.workingHours || form.workingHours,
         });
       }
@@ -179,7 +182,7 @@ export default function DoctorProfile() {
                     </div>
                   </div>
                   <div className="flex-1 text-center sm:text-left">
-                    <h2 className="text-2xl font-black text-slate-800">Dr. {profile.name}</h2>
+                    <h2 className="text-2xl font-black text-slate-800">Dr. {profile.name} <span className="text-sm font-semibold text-purple-600">({profile.degree || "Đại học"})</span></h2>
                     <div className="flex items-center gap-2 mt-1.5 justify-center sm:justify-start flex-wrap">
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white bg-purple-600">
                         👨‍⚕️ Bác sĩ chuyên khoa
@@ -206,6 +209,22 @@ export default function DoctorProfile() {
                   <div className="space-y-5">
                     <div className="card p-6 border border-slate-100 bg-white/70 space-y-4">
                       <h3 className="text-base font-bold text-slate-800">Thông tin chuyên môn</h3>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Học hàm/Bằng cấp</label>
+                        <select
+                          className="input focus:outline-none"
+                          disabled={!editing}
+                          value={form.degree}
+                          onChange={(e) => setForm({ ...form, degree: e.target.value })}
+                        >
+                          <option value="Đại học">Đại học</option>
+                          <option value="Thạc sỹ">Thạc sỹ</option>
+                          <option value="Tiến sỹ">Tiến sỹ</option>
+                          <option value="Phó giáo sư">Phó giáo sư</option>
+                          <option value="Giáo sư">Giáo sư</option>
+                        </select>
+                      </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Chuyên khoa</label>

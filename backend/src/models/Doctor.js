@@ -29,6 +29,11 @@ const doctorSchema = new mongoose.Schema(
       saturday:  { start: String, end: String, available: { type: Boolean, default: false } },
       sunday:    { start: String, end: String, available: { type: Boolean, default: false } },
     },
+    degree: {
+      type: String,
+      enum: ["Đại học", "Thạc sỹ", "Tiến sỹ", "Phó giáo sư", "Giáo sư"],
+      default: "Đại học",
+    },
     rating: { type: Number, min: 0, max: 5, default: 0 },
     totalPatients: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },

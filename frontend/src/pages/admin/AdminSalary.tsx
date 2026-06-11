@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminSidebar from "../../components/layout/AdminSidebar";
-import { doctorApi } from "../../services/api";
+import { doctorApi, salaryApi, shiftApi, unwrap } from "../../services/api";
 import { Line, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -52,6 +52,17 @@ interface WorkSession {
   amount: number;
 }
 
+interface MappedSession {
+  id: string;
+  date: string;
+  shiftName: string;
+  shiftMultiplier: number;
+  patients: any[];
+  totalDifficulty: number;
+  equivalentHours: number;
+  amount: number;
+}
+
 interface DoctorDegreeMap {
   [doctorId: string]: string;
 }
@@ -88,8 +99,15 @@ export default function AdminSalary() {
   // Doctor Degrees mapping (saved to localStorage)
   const [doctorDegrees, setDoctorDegrees] = useState<DoctorDegreeMap>({});
 
-  // Work Sessions list (saved to localStorage)
-  const [sessions, setSessions] = useState<WorkSession[]>([]);
+  // Backend dynamic state variables
+  const [activeSalary, setActiveSalary] = useState<any>(null);
+  const [loadingSalary, setLoadingSalary] = useState<boolean>(false);
+  const [allSalaries, setAllSalaries] = useState<any[]>([]); // Month summary report (UC4.5)
+  const [loadingSummary, setLoadingSummary] = useState<boolean>(false);
+  const [yearlyTrendData, setYearlyTrendData] = useState<any[]>([]); // 1 Doctor yearly report (UC4.6)
+  const [loadingYearly, setLoadingYearly] = useState<boolean>(false);
+  const [allDoctorsYearly, setAllDoctorsYearly] = useState<any[]>([]); // All Doctors yearly report (UC4.7)
+  const [loadingYearlyAll, setLoadingYearlyAll] = useState<boolean>(false);
 
   // Local state for adding/calculating session
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
@@ -102,11 +120,11 @@ export default function AdminSalary() {
   ]);
 
   // Filters for reports
-  const [filterMonth, setFilterMonth] = useState<number>(6); // Default June
-  const [filterYear, setFilterYear] = useState<number>(2026);
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1); // Default to current month
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear()); // Default to current year
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
 
-  // Load configuration & data from localStorage
+  // Load configuration from localStorage
   useEffect(() => {
     // 1. Basic Hourly Rate
     const savedRate = localStorage.getItem("salary_basic_hourly_rate");
@@ -127,18 +145,8 @@ export default function AdminSalary() {
     // 5. Doctor degrees mapping
     const savedDocDegrees = localStorage.getItem("salary_doctor_degrees");
     if (savedDocDegrees) setDoctorDegrees(JSON.parse(savedDocDegrees));
-
-    // 6. Work sessions
-    const savedSessions = localStorage.getItem("salary_sessions");
-    if (savedSessions) {
-      setSessions(JSON.parse(savedSessions));
-    } else {
-      // Seed initial dummy data if empty to display beautiful charts and slips!
-      const initialDummySessions = generateDummySessions();
-      setSessions(initialDummySessions);
-      localStorage.setItem("salary_sessions", JSON.stringify(initialDummySessions));
-    }
   }, []);
+
 
   // Fetch doctors list from API
   useEffect(() => {
@@ -152,41 +160,23 @@ export default function AdminSalary() {
           setSelectedDoctorId(list[0].id || list[0]._id);
           setFilterDoctorId(list[0].id || list[0]._id);
           
-          // Auto assign degrees for doctors if not already assigned
+          // Sync degrees from loaded doctors
           const updatedDocDegrees = { ...doctorDegrees };
           let changed = false;
-          list.forEach((doc, idx) => {
+          list.forEach((doc) => {
             const id = doc.id || doc._id;
-            if (!updatedDocDegrees[id]) {
-              // Alternate degrees for variety
-              const degrees = ["Đại học", "Thạc sỹ", "Tiến sỹ", "Phó giáo sư", "Giáo sư"];
-              updatedDocDegrees[id] = degrees[idx % degrees.length];
+            const dbDegree = doc.degree || "Đại học";
+            if (updatedDocDegrees[id] !== dbDegree) {
+              updatedDocDegrees[id] = dbDegree;
               changed = true;
             }
           });
           if (changed) {
             setDoctorDegrees(updatedDocDegrees);
-            localStorage.setItem("salary_doctor_degrees", JSON.stringify(updatedDocDegrees));
           }
         }
       } catch (err) {
         console.error("Error loading doctors:", err);
-        // Fallback mock doctors list if API fails
-        const mockList = [
-          { id: "doc_1", name: "Nguyễn Văn Tú", email: "doctor@vinamec.vn" },
-          { id: "doc_2", name: "Lê Hoàng Nam", email: "namle@vinamec.vn" },
-          { id: "doc_3", name: "Trần Thị Hùng", email: "hungtran@vinamec.vn" }
-        ];
-        setDoctorsList(mockList);
-        setSelectedDoctorId("doc_1");
-        setFilterDoctorId("doc_1");
-        const updatedDocDegrees = {
-          "doc_1": "Giáo sư",
-          "doc_2": "Tiến sỹ",
-          "doc_3": "Đại học"
-        };
-        setDoctorDegrees(updatedDocDegrees);
-        localStorage.setItem("salary_doctor_degrees", JSON.stringify(updatedDocDegrees));
       } finally {
         setLoadingDoctors(false);
       }
@@ -194,82 +184,214 @@ export default function AdminSalary() {
     fetchDoctors();
   }, []);
 
-  // Generate initial dummy data for reports throughout 2026
-  const generateDummySessions = (): WorkSession[] => {
-    const list: WorkSession[] = [];
-    const doctorDetails = [
-      { id: "doc_1", name: "Nguyễn Văn Tú", code: "BS001", degree: "Giáo sư" },
-      { id: "doc_2", name: "Lê Hoàng Nam", code: "BS002", degree: "Tiến sỹ" },
-      { id: "doc_3", name: "Trần Thị Hùng", code: "BS003", degree: "Đại học" }
-    ];
+  // --- API calling functions ---
+  const fetchActiveSalary = async (docId: string, month: number, year: number) => {
+    if (!docId) return;
+    setLoadingSalary(true);
+    try {
+      const degree = doctorDegrees[docId] || "Đại học";
+      const docCoeff = degreeCoefficients[degree] || 1.2;
+      const res = await salaryApi.calculate({
+        doctorId: docId,
+        month,
+        year,
+        basicHourlyRate,
+        degreeCoefficient: docCoeff,
+      });
+      setActiveSalary(unwrap(res));
+    } catch (err) {
+      console.error("Error calculating active salary:", err);
+      setActiveSalary(null);
+    } finally {
+      setLoadingSalary(false);
+    }
+  };
 
-    // Generate data for 12 months in 2026
-    for (let month = 1; month <= 12; month++) {
-      const monthStr = String(month).padStart(2, "0");
-      doctorDetails.forEach((doc) => {
-        // Average 15 shifts per month for each doctor
-        const shiftCount = 10 + Math.floor(Math.random() * 8);
-        for (let i = 1; i <= shiftCount; i++) {
-          const day = i * 2;
-          const dateStr = `2026-${monthStr}-${String(day).padStart(2, "0")}`;
-          const isWeekendVal = isWeekend(dateStr);
-
-          // Alternating shifts
-          const shiftType = i % 3 === 0 ? "evening" : (i % 2 === 0 ? "afternoon" : "morning");
-          const shiftKey = `${isWeekendVal ? "weekend" : "weekday"}-${shiftType}`;
-          const shiftMult = 1.0 + (isWeekendVal ? 0.5 : (shiftType === "evening" ? 0.2 : 0.0));
-          
-          const startH = shiftType === "morning" ? 8 : (shiftType === "afternoon" ? 13 : 18);
-          const endH = shiftType === "morning" ? 11 : (shiftType === "afternoon" ? 17 : 21);
-          const hours = endH - startH;
-
-          // Number of patients in shift
-          const patCount = 2 + Math.floor(Math.random() * 3);
-          const patientsList: PatientCase[] = [];
-          let totalDiff = 0;
-          for (let p = 1; p <= patCount; p++) {
-            const diffRand = Math.random();
-            // 60% normal, 20% medium, 15% hard, 5% very hard
-            let diff = 0.0;
-            let diffLabel = "Thông thường";
-            if (diffRand > 0.95) { diff = 0.5; diffLabel = "Khó nhất"; }
-            else if (diffRand > 0.8) { diff = 0.3; diffLabel = "Phức tạp"; }
-            else if (diffRand > 0.6) { diff = 0.2; diffLabel = "Trung bình"; }
-            
-            patientsList.push({
-              name: `Bệnh nhân ${p}`,
-              code: `BN-${month}${day}-${p}`,
-              difficulty: diff
-            });
-            totalDiff += diff;
-          }
-
-          const docDegMult = doc.degree === "Giáo sư" ? 3.0 : (doc.degree === "Tiến sỹ" ? 2.0 : 1.2);
-          const equivH = hours * (shiftMult + totalDiff);
-          const amt = equivH * docDegMult * 210000;
-
-          list.push({
-            id: `seed_${month}_${doc.id}_${i}`,
-            doctorId: doc.id,
+  const fetchMonthlySummary = async (month: number, year: number) => {
+    setLoadingSummary(true);
+    try {
+      const res = await salaryApi.list({ month, year, limit: 1000 });
+      const records = unwrap<any[]>(res);
+      const mapped = doctorsList.map((doc) => {
+        const docId = doc.id || doc._id;
+        const record = records.find((r: any) => {
+          const rDocId = r.doctorId?._id || r.doctorId || "";
+          return rDocId === docId;
+        });
+        if (record) {
+          return record;
+        } else {
+          const degree = doctorDegrees[docId] || "Đại học";
+          return {
+            doctorId: docId,
             doctorName: doc.name,
-            doctorCode: doc.code,
-            doctorDegree: doc.degree,
-            date: dateStr,
-            shiftName: `Ca ${shiftType === "morning" ? "Sáng" : (shiftType === "afternoon" ? "Chiều" : "Tối")} (${startH}h-${endH}h)`,
-            startHour: startH,
-            endHour: endH,
-            shiftMultiplier: shiftMult,
-            patients: patientsList,
-            basicHourlyRate: 210000,
-            totalDifficulty: Number(totalDiff.toFixed(1)),
-            equivalentHours: Number(equivH.toFixed(2)),
-            amount: Math.round(amt)
-          });
+            doctorDegree: degree,
+            month,
+            year,
+            totalShifts: 0,
+            totalEquivalentHours: 0,
+            totalAmount: 0,
+            status: "draft"
+          };
         }
       });
+      setAllSalaries(mapped);
+    } catch (err) {
+      console.error("Error fetching monthly summary:", err);
+    } finally {
+      setLoadingSummary(false);
     }
-    return list;
   };
+
+  const handleSyncMonthlySummary = async () => {
+    setLoadingSummary(true);
+    try {
+      const syncedSalaries = [];
+      for (const doc of doctorsList) {
+        const docId = doc.id || doc._id;
+        const degree = doctorDegrees[docId] || "Đại học";
+        const docCoeff = degreeCoefficients[degree] || 1.2;
+        try {
+          const res = await salaryApi.calculate({
+            doctorId: docId,
+            month: filterMonth,
+            year: filterYear,
+            basicHourlyRate,
+            degreeCoefficient: docCoeff,
+          });
+          syncedSalaries.push(unwrap(res));
+        } catch (err) {
+          syncedSalaries.push({
+            doctorId: docId,
+            doctorName: doc.name,
+            doctorDegree: degree,
+            month: filterMonth,
+            year: filterYear,
+            totalShifts: 0,
+            totalEquivalentHours: 0,
+            totalAmount: 0,
+            status: "draft"
+          });
+        }
+      }
+      setAllSalaries(syncedSalaries);
+      alert("Đồng bộ dữ liệu lương tháng thành công!");
+    } catch (err) {
+      console.error("Error syncing monthly summary:", err);
+      alert("Có lỗi xảy ra khi đồng bộ!");
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
+  const fetchYearlyTrend = async (docId: string, year: number) => {
+    if (!docId) return;
+    setLoadingYearly(true);
+    try {
+      const degree = doctorDegrees[docId] || "Đại học";
+      const docCoeff = degreeCoefficients[degree] || 1.2;
+      const monthlyTrends = await Promise.all(
+        Array.from({ length: 12 }, async (_, idx) => {
+          const month = idx + 1;
+          try {
+            const res = await salaryApi.calculate({
+              doctorId: docId,
+              month,
+              year,
+              basicHourlyRate,
+              degreeCoefficient: docCoeff,
+            });
+            const data = unwrap(res);
+            return { ...data, month };
+          } catch (err) {
+            return {
+              month,
+              totalShifts: 0,
+              totalEquivalentHours: 0,
+              totalAmount: 0,
+            };
+          }
+        })
+      );
+      setYearlyTrendData(monthlyTrends);
+    } catch (err) {
+      console.error("Error fetching yearly trend:", err);
+    } finally {
+      setLoadingYearly(false);
+    }
+  };
+
+  const fetchYearlyAllDoctors = async (year: number) => {
+    setLoadingYearlyAll(true);
+    try {
+      const res = await salaryApi.list({ year, limit: 1000 });
+      const records = unwrap<any[]>(res);
+      const grouped = doctorsList.map((doc) => {
+        const id = doc.id || doc._id;
+        const degree = doctorDegrees[id] || "Đại học";
+        const docRecords = records.filter((r: any) => {
+          const rDocId = r.doctorId?._id || r.doctorId || "";
+          return rDocId === id;
+        });
+        const totalAmount = docRecords.reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0);
+        return {
+          name: doc.name,
+          degree,
+          totalAmount
+        };
+      });
+      setAllDoctorsYearly(grouped);
+    } catch (err) {
+      console.error("Error fetching yearly all doctors:", err);
+    } finally {
+      setLoadingYearlyAll(false);
+    }
+  };
+
+  const syncYearlyAllDoctors = async (year: number) => {
+    setLoadingYearlyAll(true);
+    try {
+      for (const doc of doctorsList) {
+        const id = doc.id || doc._id;
+        const degree = doctorDegrees[id] || "Đại học";
+        const docCoeff = degreeCoefficients[degree] || 1.2;
+        for (let month = 1; month <= 12; month++) {
+          try {
+            await salaryApi.calculate({
+              doctorId: id,
+              month,
+              year,
+              basicHourlyRate,
+              degreeCoefficient: docCoeff,
+            });
+          } catch (err) {
+            // ignore
+          }
+        }
+      }
+      await fetchYearlyAllDoctors(year);
+      alert("Đồng bộ và tính toán lại lương cả năm thành công!");
+    } catch (err) {
+      console.error("Error syncing yearly all doctors:", err);
+    } finally {
+      setLoadingYearlyAll(false);
+    }
+  };
+
+  // Trigger loaders when active tab or filters change
+  useEffect(() => {
+    if (doctorsList.length === 0) return;
+
+    if (activeMenu === "uc4_4") {
+      fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
+    } else if (activeMenu === "uc4_5") {
+      fetchMonthlySummary(filterMonth, filterYear);
+    } else if (activeMenu === "uc4_6") {
+      fetchYearlyTrend(filterDoctorId, filterYear);
+    } else if (activeMenu === "uc4_7") {
+      fetchYearlyAllDoctors(filterYear);
+    }
+  }, [activeMenu, filterDoctorId, filterMonth, filterYear, doctorsList]);
 
   const isWeekend = (dateString: string): boolean => {
     const day = new Date(dateString).getDay();
@@ -287,97 +409,77 @@ export default function AdminSalary() {
     setBasicHourlyRate(rate);
     localStorage.setItem("salary_basic_hourly_rate", String(rate));
     alert("Đã lưu đơn giá cơ bản một giờ làm việc!");
+    if (filterDoctorId) {
+      fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
+    }
   };
 
   const handleSaveDegrees = () => {
     localStorage.setItem("salary_degree_coefficients", JSON.stringify(degreeCoefficients));
     alert("Đã lưu hệ số bằng cấp bác sĩ!");
+    if (filterDoctorId) {
+      fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
+    }
   };
 
   const handleSaveShifts = () => {
     localStorage.setItem("salary_shift_multipliers", JSON.stringify(shiftMultipliers));
     alert("Đã lưu hệ số ca làm việc!");
+    if (filterDoctorId) {
+      fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
+    }
   };
 
   const handleSaveDifficulties = () => {
     localStorage.setItem("salary_difficulty_coefficients", JSON.stringify(difficultyCoefficients));
     alert("Đã lưu hệ số mức độ khó của bệnh nhân!");
-  };
-
-  const handleDoctorDegreeChange = (docId: string, degree: string) => {
-    const updated = { ...doctorDegrees, [docId]: degree };
-    setDoctorDegrees(updated);
-    localStorage.setItem("salary_doctor_degrees", JSON.stringify(updated));
-
-    // Also update all saved sessions of this doctor with the new degree for consistency
-    const updatedSessions = sessions.map((s) => {
-      if (s.doctorId === docId) {
-        const docDegMult = degree === "Giáo sư" ? 3.0 : (degree === "Tiến sỹ" ? 2.0 : (degree === "Thạc sỹ" ? 1.5 : (degree === "Phó giáo sư" ? 2.5 : 1.2)));
-        const amt = s.equivalentHours * docDegMult * s.basicHourlyRate;
-        return { ...s, doctorDegree: degree, amount: Math.round(amt) };
-      }
-      return s;
-    });
-    setSessions(updatedSessions);
-    localStorage.setItem("salary_sessions", JSON.stringify(updatedSessions));
-  };
-
-  // Quick seed calculator case helper
-  const handleQuickSeedCase = (caseType: 1 | 2) => {
-    if (caseType === 1) {
-      // Bachelor, Mon 8h-11h, 3 normal patients
-      // Find a bachelor doctor
-      const bachDoc = doctorsList.find(d => doctorDegrees[d.id || d._id] === "Đại học") || doctorsList[0];
-      if (bachDoc) setSelectedDoctorId(bachDoc.id || bachDoc._id);
-      setSessionDate("2026-06-01"); // Monday
-      setSessionStartHour(8);
-      setSessionEndHour(11);
-      setSessionShiftType("morning");
-      setSessionPatients([
-        { name: "Bệnh nhân Lan", code: "BN101", difficulty: 0.0 },
-        { name: "Bệnh nhân Mai", code: "BN102", difficulty: 0.0 },
-        { name: "Bệnh nhân Cúc", code: "BN103", difficulty: 0.0 }
-      ]);
-    } else {
-      // Professor, Tue 10h-12h, 2 hardest patients
-      // Find a professor doctor
-      const profDoc = doctorsList.find(d => doctorDegrees[d.id || d._id] === "Giáo sư") || doctorsList[0];
-      if (profDoc) setSelectedDoctorId(profDoc.id || profDoc._id);
-      setSessionDate("2026-06-02"); // Tuesday
-      setSessionStartHour(10);
-      setSessionEndHour(12);
-      setSessionShiftType("morning");
-      setSessionPatients([
-        { name: "Bệnh nhân An", code: "BN201", difficulty: 0.5 },
-        { name: "Bệnh nhân Bình", code: "BN202", difficulty: 0.5 }
-      ]);
+    if (filterDoctorId) {
+      fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
     }
   };
 
-  // Add Patient to form list
+  const handleDoctorDegreeChange = async (docId: string, degree: string) => {
+    const updated = { ...doctorDegrees, [docId]: degree };
+    setDoctorDegrees(updated);
+    
+    try {
+      await doctorApi.update(docId, { degree });
+    } catch (e) {
+      console.error("Failed to update degree in backend:", e);
+    }
+
+    if (docId === filterDoctorId) {
+      const docCoeff = degreeCoefficients[degree] || 1.2;
+      salaryApi.calculate({
+        doctorId: docId,
+        month: filterMonth,
+        year: filterYear,
+        basicHourlyRate,
+        degreeCoefficient: docCoeff,
+      }).then((res) => {
+        setActiveSalary(unwrap(res));
+      }).catch(err => console.error(err));
+    }
+  };
+
+
   const addPatientRow = () => {
     setSessionPatients([...sessionPatients, { name: "", code: "", difficulty: 0.0 }]);
   };
 
-  // Remove Patient from form list
   const removePatientRow = (idx: number) => {
     const list = [...sessionPatients];
     list.splice(idx, 1);
     setSessionPatients(list);
   };
 
-  // Save Calculated Session
-  const handleSaveSession = (e: React.FormEvent) => {
+  // Save Calculated Session by creating real Shifts and Appointments in database
+  const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const selectedDoc = doctorsList.find(d => (d.id || d._id) === selectedDoctorId);
-    if (!selectedDoc) {
+    if (!selectedDoctorId) {
       alert("Vui lòng chọn bác sĩ!");
       return;
     }
-
-    const degree = doctorDegrees[selectedDoc.id || selectedDoc._id] || "Đại học";
-    const docCoeff = degreeCoefficients[degree] || 1.2;
 
     const hours = sessionEndHour - sessionStartHour;
     if (hours <= 0) {
@@ -385,145 +487,140 @@ export default function AdminSalary() {
       return;
     }
 
-    const isW = isWeekend(sessionDate);
-    const shiftKey = `${isW ? "weekend" : "weekday"}-${sessionShiftType}`;
-    const shiftMult = shiftMultipliers[shiftKey] || 1.0;
+    setLoadingSalary(true);
+    try {
+      const startStr = `${String(sessionStartHour).padStart(2, "0")}:00`;
+      const endStr = `${String(sessionEndHour).padStart(2, "0")}:00`;
 
-    const totalDiff = sessionPatients.reduce((sum, p) => sum + Number(p.difficulty), 0);
-    const equivH = hours * (shiftMult + totalDiff);
-    const amt = equivH * docCoeff * basicHourlyRate;
+      // 1. Create a real shift in the shifts database
+      await shiftApi.create({
+        doctorId: selectedDoctorId,
+        date: sessionDate,
+        shiftType: sessionShiftType,
+        startTime: startStr,
+        endTime: endStr,
+        maxPatients: 10,
+        notes: "Ca trực được tạo từ quản lý lương"
+      });
 
-    const newSession: WorkSession = {
-      id: `session_${Date.now()}`,
-      doctorId: selectedDoc.id || selectedDoc._id,
-      doctorName: selectedDoc.name,
-      doctorCode: selectedDoc.id?.slice(-5) || selectedDoc._id?.slice(-5) || "BS",
-      doctorDegree: degree,
-      date: sessionDate,
-      shiftName: `Ca ${sessionShiftType === "morning" ? "Sáng" : (sessionShiftType === "afternoon" ? "Chiều" : "Tối")} (${sessionStartHour}h-${sessionEndHour}h)`,
-      startHour: sessionStartHour,
-      endHour: sessionEndHour,
-      shiftMultiplier: shiftMult,
-      patients: sessionPatients.filter(p => p.name.trim() !== ""),
-      basicHourlyRate: basicHourlyRate,
-      totalDifficulty: Number(totalDiff.toFixed(1)),
-      equivalentHours: Number(equivH.toFixed(2)),
-      amount: Math.round(amt)
-    };
+      // 2. Create and complete appointments if patients are supplied
+      const validPatients = sessionPatients.filter(p => p.name.trim() !== "");
+      if (validPatients.length > 0) {
+        const { patientApi, appointmentApi } = await import("../../services/api");
+        const patientsRes = await patientApi.getAll();
+        const patientsList = Array.isArray(patientsRes.data) ? patientsRes.data : (Array.isArray(patientsRes) ? patientsRes : []);
+        const dummyPatient = patientsList[0];
+        const dummyPatientId = dummyPatient?.id || dummyPatient?._id;
 
-    const updated = [newSession, ...sessions];
-    setSessions(updated);
-    localStorage.setItem("salary_sessions", JSON.stringify(updated));
-    alert("Đã lưu ca làm việc và cập nhật vào phiếu lương!");
+        if (dummyPatientId) {
+          for (const pat of validPatients) {
+            const aptRes = await appointmentApi.create({
+              doctorId: selectedDoctorId,
+              patientId: dummyPatientId,
+              date: sessionDate,
+              shiftType: sessionShiftType,
+              serviceName: "Khám điều trị",
+              notes: `Bệnh nhân: ${pat.name}`
+            });
+            const createdApt = aptRes.data?.data || aptRes.data;
+            if (createdApt && createdApt.id) {
+              try {
+                await appointmentApi.approve(createdApt.id);
+              } catch (e) {}
+              await appointmentApi.complete(createdApt.id, {
+                notes: `Hoàn tất khám bệnh nhân ${pat.name}`,
+                difficulty: pat.difficulty
+              });
+            }
+          }
+        }
+      }
 
-    // Reset Form
-    setSessionPatients([{ name: "", code: "", difficulty: 0.0 }]);
-  };
-
-  // Delete saved session
-  const handleDeleteSession = (id: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa ca làm việc này?")) {
-      const updated = sessions.filter(s => s.id !== id);
-      setSessions(updated);
-      localStorage.setItem("salary_sessions", JSON.stringify(updated));
+      alert("Đã thêm ca trực và ca khám thực tế thành công! Hệ thống đang tự động cập nhật phiếu lương.");
+      
+      // Reset Form
+      setSessionPatients([{ name: "", code: "", difficulty: 0.0 }]);
+      
+      // Refresh active salary
+      if (selectedDoctorId === filterDoctorId) {
+        fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || err.message || "Không thể lưu ca làm việc thực tế.");
+    } finally {
+      setLoadingSalary(false);
     }
   };
 
-  // --- Filtering calculations ---
+  const handleDeleteSession = async (id: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa ca làm việc này khỏi lịch trực?")) {
+      try {
+        await shiftApi.delete(id);
+        alert("Đã xóa ca làm việc!");
+        if (filterDoctorId) {
+          fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
+        }
+      } catch (err: any) {
+        console.error(err);
+        alert(err.response?.data?.message || err.message || "Không thể xóa ca làm việc.");
+      }
+    }
+  };
+
+  // --- Mapped variables for rendering logic compatibility ---
   const activeDoctorInfo = doctorsList.find(d => (d.id || d._id) === filterDoctorId);
   const activeDoctorDegree = filterDoctorId ? doctorDegrees[filterDoctorId] || "Đại học" : "Đại học";
   const activeDoctorMultiplier = degreeCoefficients[activeDoctorDegree] || 1.2;
 
-  // Filtered sessions of a specific doctor in a month
-  const doctorMonthlySessions = sessions.filter((s) => {
-    const [year, month] = s.date.split("-").map(Number);
-    return s.doctorId === filterDoctorId && month === filterMonth && year === filterYear;
-  });
+  // Slip table sessions mapping
+  const doctorMonthlySessions: MappedSession[] = (activeSalary?.shiftDetails || []).map((s: any) => ({
+    id: s._id || s.id,
+    date: s.date,
+    shiftName: `Ca ${s.shiftType === "morning" ? "Sáng" : (s.shiftType === "afternoon" ? "Chiều" : "Tối")} (${s.startTime}-${s.endTime})`,
+    shiftMultiplier: s.shiftMultiplier,
+    patients: Array.from({ length: s.patientsCount || 0 }), // dummy array for count compatibility
+    totalDifficulty: s.totalDifficulty,
+    equivalentHours: s.equivalentHours,
+    amount: s.shiftAmount
+  }));
 
-  const doctorMonthlySummary = doctorMonthlySessions.reduce(
-    (summary, s) => {
-      summary.shifts += 1;
-      summary.hours += (s.endHour - s.startHour);
-      summary.equivHours += s.equivalentHours;
-      summary.totalAmount += s.amount;
-      return summary;
-    },
-    { shifts: 0, hours: 0, equivHours: 0, totalAmount: 0 }
-  );
+  // Slip summary mapping
+  const doctorMonthlySummary = {
+    shifts: activeSalary?.totalShifts || 0,
+    hours: activeSalary?.totalWorkingHours || 0,
+    equivHours: activeSalary?.totalEquivalentHours || 0,
+    totalAmount: activeSalary?.totalAmount || 0
+  };
 
-  // Filtered summary for all doctors in a month
-  const allDoctorsMonthlySummary = doctorsList.map((doc) => {
-    const id = doc.id || doc._id;
-    const degree = doctorDegrees[id] || "Đại học";
-    const docSessions = sessions.filter((s) => {
-      const [year, month] = s.date.split("-").map(Number);
-      return s.doctorId === id && month === filterMonth && year === filterYear;
-    });
-
-    const sum = docSessions.reduce(
-      (totals, s) => {
-        totals.shifts += 1;
-        totals.equivHours += s.equivalentHours;
-        totals.totalAmount += s.amount;
-        return totals;
-      },
-      { shifts: 0, equivHours: 0, totalAmount: 0 }
-    );
-
+  // All Doctors monthly summary (UC4.5)
+  const allDoctorsMonthlySummary = allSalaries.map((s: any) => {
+    const docId = s.doctorId?._id || s.doctorId || "";
     return {
-      id,
-      name: doc.name,
-      code: id.slice(-5).toUpperCase(),
-      degree,
-      shifts: sum.shifts,
-      equivHours: Number(sum.equivHours.toFixed(2)),
-      totalAmount: sum.totalAmount
+      id: docId,
+      name: s.doctorName,
+      code: docId.slice(-5).toUpperCase(),
+      degree: s.doctorDegree || doctorDegrees[docId] || "Đại học",
+      shifts: s.totalShifts || 0,
+      equivHours: s.totalEquivalentHours || 0,
+      totalAmount: s.totalAmount || 0
     };
   });
 
-  // Calculate 12 months salary for a specific doctor
+  // Yearly trend data for 1 Doctor (UC4.6)
   const doctorYearlyData = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
-    const docSessions = sessions.filter((s) => {
-      const [year, month] = s.date.split("-").map(Number);
-      return s.doctorId === filterDoctorId && month === m && year === filterYear;
-    });
-
-    const sum = docSessions.reduce(
-      (totals, s) => {
-        totals.shifts += 1;
-        totals.equivHours += s.equivalentHours;
-        totals.totalAmount += s.amount;
-        return totals;
-      },
-      { shifts: 0, equivHours: 0, totalAmount: 0 }
-    );
-
+    const record = yearlyTrendData.find((r: any) => r.month === m);
     return {
       month: `Tháng ${m}`,
-      shifts: sum.shifts,
-      equivHours: Number(sum.equivHours.toFixed(2)),
-      amount: sum.totalAmount
+      shifts: record?.totalShifts || 0,
+      equivHours: record?.totalEquivalentHours || 0,
+      amount: record?.totalAmount || 0
     };
   });
 
-  // Calculate 1 year salary for all doctors
-  const allDoctorsYearlySummary = doctorsList.map((doc) => {
-    const id = doc.id || doc._id;
-    const degree = doctorDegrees[id] || "Đại học";
-    const docSessions = sessions.filter((s) => {
-      const [year] = s.date.split("-").map(Number);
-      return s.doctorId === id && year === filterYear;
-    });
-
-    const totalAmount = docSessions.reduce((sum, s) => sum + s.amount, 0);
-
-    return {
-      name: doc.name,
-      degree,
-      totalAmount
-    };
-  });
+  // All Doctors yearly summary (UC4.7)
+  const allDoctorsYearlySummary = allDoctorsYearly;
 
   // --- Chart configs ---
   const lineChartData = {
@@ -715,6 +812,13 @@ export default function AdminSalary() {
     }
   ];
 
+  const hourlyRateBadge = (
+    <div className="text-right bg-sky-50 border border-sky-100 rounded-xl px-4 py-1.5 flex-shrink-0 animate-fade-in shadow-sm select-none">
+      <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest leading-none">Đơn giá cơ bản</p>
+      <p className="text-sm font-black text-sky-700 mt-1 leading-none">{basicHourlyRate.toLocaleString("vi-VN")} đ/h</p>
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
       <AdminSidebar />
@@ -724,11 +828,6 @@ export default function AdminSalary() {
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Quản lý lương Bác sĩ</h1>
             <p className="text-sm text-slate-500 mt-0.5">Phòng khám nha khoa Smart Dental</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-              Đơn giá cơ bản: {basicHourlyRate.toLocaleString("vi-VN")} đ/h
-            </span>
           </div>
         </div>
 
@@ -763,36 +862,6 @@ export default function AdminSalary() {
                 </div>
               </div>
             ))}
-
-            {/* Quick Scenario solvers box */}
-            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-4.5 space-y-3.5 mt-5">
-              <p className="text-sm font-bold text-violet-800 flex items-center gap-1.5">
-                💡 Trình tính nhanh đề bài
-              </p>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Tự động điền dữ liệu theo 2 trường hợp tính lương mẫu trong đề bài buổi học.
-              </p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    setActiveMenu("uc4_4");
-                    handleQuickSeedCase(1);
-                  }}
-                  className="w-full py-2 bg-white border border-violet-200 rounded-lg text-xs font-bold text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition"
-                >
-                  Trường hợp 1: Đại học (756k)
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveMenu("uc4_4");
-                    handleQuickSeedCase(2);
-                  }}
-                  className="w-full py-2 bg-white border border-violet-200 rounded-lg text-xs font-bold text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition"
-                >
-                  Trường hợp 2: Giáo sư (2,520k)
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* RIGHT DETAIL WORKSPACE */}
@@ -972,9 +1041,12 @@ export default function AdminSalary() {
                   <div className="card p-6 border border-slate-100 space-y-5">
                     
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-                      <div>
-                        <h3 className="font-bold text-slate-800 text-xl">Phiếu chi trả lương Bác sĩ</h3>
-                        <p className="text-sm text-slate-500">Danh sách các ca trực và chi tiết tính lương</p>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <h3 className="font-bold text-slate-800 text-xl">Phiếu chi trả lương Bác sĩ</h3>
+                          <p className="text-sm text-slate-500">Danh sách các ca trực và chi tiết tính lương</p>
+                        </div>
+                        {hourlyRateBadge}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Month */}
@@ -1228,36 +1300,7 @@ export default function AdminSalary() {
                       ))}
                     </div>
 
-                    {/* Real-time Math calculation viewer */}
-                    {selectedDoctorId && (
-                      <div className="bg-violet-50/70 border border-violet-100 rounded-xl p-4 text-sm text-violet-900 space-y-1.5">
-                        <p className="font-bold text-violet-800 text-xs mb-1">📐 Chi tiết công thức tính:</p>
-                        {(() => {
-                          const degree = doctorDegrees[selectedDoctorId] || "Đại học";
-                          const docCoeff = degreeCoefficients[degree] || 1.2;
-                          const hours = Math.max(0, sessionEndHour - sessionStartHour);
-                          const isW = isWeekend(sessionDate);
-                          const shiftKey = `${isW ? "weekend" : "weekday"}-${sessionShiftType}`;
-                          const shiftMult = shiftMultipliers[shiftKey] || 1.0;
-                          const totalDiff = sessionPatients.reduce((sum, p) => sum + Number(p.difficulty), 0);
-                          const equivH = hours * (shiftMult + totalDiff);
-                          const totalAmt = equivH * docCoeff * basicHourlyRate;
 
-                          return (
-                            <div className="space-y-1.5 leading-relaxed text-xs font-medium">
-                              <p>• Trình độ: <span className="font-bold">{degree}</span> (Hệ số: {docCoeff})</p>
-                              <p>• Số giờ mỗi ca: {sessionEndHour}h - {sessionStartHour}h = <span className="font-bold">{hours}h</span></p>
-                              <p>• Hệ số ca ({getDayOfWeekLabel(sessionDate)}): <span className="font-bold">{shiftMult}</span></p>
-                              <p>• Tổng độ khó BN: <span className="font-bold">{totalDiff.toFixed(1)}</span></p>
-                              <p>• Số giờ quy đổi: <code>{hours} * ({shiftMult} + {totalDiff.toFixed(1)}) = {equivH.toFixed(2)} giờ</code></p>
-                              <p className="text-violet-950 font-bold border-t border-violet-200/60 pt-1.5 mt-1.5 text-xs sm:text-sm">
-                                =&gt; Lương ca: <code>{equivH.toFixed(2)} * {docCoeff} * {basicHourlyRate.toLocaleString("vi-VN")} đ = {Math.round(totalAmt).toLocaleString("vi-VN")} đ</code>
-                              </p>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
 
                     <button
                       type="submit"
@@ -1275,9 +1318,12 @@ export default function AdminSalary() {
             {activeMenu === "uc4_5" && (
               <div className="card p-6 border border-slate-100 animate-fade-in space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương tất cả bác sĩ</h3>
-                    <p className="text-sm text-slate-500">Tổng hợp thu nhập thanh toán trong tháng</p>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương tất cả bác sĩ</h3>
+                      <p className="text-sm text-slate-500">Tổng hợp thu nhập thanh toán trong tháng</p>
+                    </div>
+                    {hourlyRateBadge}
                   </div>
                   <div className="flex items-center gap-2">
                     <select
@@ -1294,8 +1340,17 @@ export default function AdminSalary() {
                       onChange={(e) => setFilterYear(Number(e.target.value))}
                       className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
-                      <option value={2026}>Năm 2026</option>
+                      {[filterYear - 2, filterYear - 1, filterYear, filterYear + 1].map(y => (
+                        <option key={y} value={y}>Năm {y}</option>
+                      ))}
                     </select>
+                    <button
+                      onClick={handleSyncMonthlySummary}
+                      className="px-3.5 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-sm font-bold transition mr-1"
+                      disabled={loadingSummary}
+                    >
+                      {loadingSummary ? "Đang xử lý..." : "🔄 Đồng bộ & Làm mới"}
+                    </button>
                     <button
                       onClick={() => {
                         const csvContent = [
@@ -1318,32 +1373,38 @@ export default function AdminSalary() {
                 </div>
 
                 <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-                  <table className="w-full text-sm text-left">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-150 text-xs font-bold text-slate-500 uppercase">
-                        <th className="px-6 py-4">Mã số</th>
-                        <th className="px-6 py-4">Bác sĩ</th>
-                        <th className="px-6 py-4">Học vị / Bằng cấp</th>
-                        <th className="px-6 py-4 text-center">Số ca làm</th>
-                        <th className="px-6 py-4 text-center">Số giờ quy đổi (QĐ)</th>
-                        <th className="px-6 py-4 text-right">Lương thực lĩnh (VNĐ)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allDoctorsMonthlySummary.map((d) => (
-                        <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                          <td className="px-6 py-4 font-bold text-slate-400">#{d.code}</td>
-                          <td className="px-6 py-4 font-bold text-slate-700">Dr. {d.name}</td>
-                          <td className="px-6 py-4 font-semibold text-sky-600">{d.degree}</td>
-                          <td className="px-6 py-4 text-center font-medium text-slate-600">{d.shifts}</td>
-                          <td className="px-6 py-4 text-center font-bold text-indigo-500">{d.equivHours}</td>
-                          <td className="px-6 py-4 text-right font-black text-emerald-600 text-lg">
-                            {d.totalAmount.toLocaleString("vi-VN")} đ
-                          </td>
+                  {loadingSummary ? (
+                    <div className="flex justify-center items-center py-20">
+                      <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-600 rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm text-left">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-150 text-xs font-bold text-slate-500 uppercase">
+                          <th className="px-6 py-4">Mã số</th>
+                          <th className="px-6 py-4">Bác sĩ</th>
+                          <th className="px-6 py-4">Học vị / Bằng cấp</th>
+                          <th className="px-6 py-4 text-center">Số ca làm</th>
+                          <th className="px-6 py-4 text-center">Số giờ quy đổi (QĐ)</th>
+                          <th className="px-6 py-4 text-right">Lương thực lĩnh (VNĐ)</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {allDoctorsMonthlySummary.map((d) => (
+                          <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="px-6 py-4 font-bold text-slate-400">#{d.code}</td>
+                            <td className="px-6 py-4 font-bold text-slate-700">Dr. {d.name}</td>
+                            <td className="px-6 py-4 font-semibold text-sky-600">{d.degree}</td>
+                            <td className="px-6 py-4 text-center font-medium text-slate-600">{d.shifts}</td>
+                            <td className="px-6 py-4 text-center font-bold text-indigo-500">{d.equivHours}</td>
+                            <td className="px-6 py-4 text-right font-black text-emerald-600 text-lg">
+                              {d.totalAmount.toLocaleString("vi-VN")} đ
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             )}
@@ -1352,9 +1413,12 @@ export default function AdminSalary() {
             {activeMenu === "uc4_6" && (
               <div className="card p-6 border border-slate-100 animate-fade-in space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương năm của Bác sĩ</h3>
-                    <p className="text-sm text-slate-500">Theo dõi xu hướng thu nhập 12 tháng của bác sĩ</p>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương năm của Bác sĩ</h3>
+                      <p className="text-sm text-slate-500">Theo dõi xu hướng thu nhập 12 tháng của bác sĩ</p>
+                    </div>
+                    {hourlyRateBadge}
                   </div>
                   <div className="flex items-center gap-2">
                     <select
@@ -1371,42 +1435,52 @@ export default function AdminSalary() {
                       onChange={(e) => setFilterYear(Number(e.target.value))}
                       className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
-                      <option value={2026}>Năm 2026</option>
+                      {[filterYear - 2, filterYear - 1, filterYear, filterYear + 1].map(y => (
+                        <option key={y} value={y}>Năm {y}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
-                {/* Graph component */}
-                <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ xu hướng thu nhập năm {filterYear}</h4>
-                  <div style={{ height: "260px" }}>
-                    <Line data={lineChartData} options={lineChartOptions} />
+                {loadingYearly ? (
+                  <div className="flex justify-center items-center py-20">
+                    <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-600 rounded-full animate-spin" />
                   </div>
-                </div>
+                ) : (
+                  <>
+                    {/* Graph component */}
+                    <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ xu hướng thu nhập năm {filterYear}</h4>
+                      <div style={{ height: "260px" }}>
+                        <Line data={lineChartData} options={lineChartOptions} />
+                      </div>
+                    </div>
 
-                {/* Data Table */}
-                <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                  <table className="w-full text-sm text-left">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
-                        <th className="px-4 py-3">Tháng</th>
-                        <th className="px-4 py-3 text-center">Số ca trực</th>
-                        <th className="px-4 py-3 text-center">Số giờ quy đổi (QĐ)</th>
-                        <th className="px-4 py-3 text-right">Lương thực lĩnh</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {doctorYearlyData.map((d, index) => (
-                        <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
-                          <td className="px-4 py-3 font-bold text-slate-700">{d.month}</td>
-                          <td className="px-4 py-3 text-center text-slate-500">{d.shifts}</td>
-                          <td className="px-4 py-3 text-center font-bold text-indigo-500">{d.equivHours}</td>
-                          <td className="px-4 py-3 text-right font-bold text-emerald-600">{d.amount.toLocaleString("vi-VN")} đ</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    {/* Data Table */}
+                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                      <table className="w-full text-sm text-left">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+                            <th className="px-4 py-3">Tháng</th>
+                            <th className="px-4 py-3 text-center">Số ca trực</th>
+                            <th className="px-4 py-3 text-center">Số giờ quy đổi (QĐ)</th>
+                            <th className="px-4 py-3 text-right">Lương thực lĩnh</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {doctorYearlyData.map((d, index) => (
+                            <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
+                              <td className="px-4 py-3 font-bold text-slate-700">{d.month}</td>
+                              <td className="px-4 py-3 text-center text-slate-500">{d.shifts}</td>
+                              <td className="px-4 py-3 text-center font-bold text-indigo-500">{d.equivHours}</td>
+                              <td className="px-4 py-3 text-right font-bold text-emerald-600">{d.amount.toLocaleString("vi-VN")} đ</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1414,9 +1488,12 @@ export default function AdminSalary() {
             {activeMenu === "uc4_7" && (
               <div className="card p-6 border border-slate-100 animate-fade-in space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương so sánh tất cả bác sĩ</h3>
-                    <p className="text-sm text-slate-500">So sánh tổng thu nhập năm giữa các bác sĩ phòng khám</p>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương so sánh tất cả bác sĩ</h3>
+                      <p className="text-sm text-slate-500">So sánh tổng thu nhập năm giữa các bác sĩ phòng khám</p>
+                    </div>
+                    {hourlyRateBadge}
                   </div>
                   <div className="flex items-center gap-2">
                     <select
@@ -1424,42 +1501,59 @@ export default function AdminSalary() {
                       onChange={(e) => setFilterYear(Number(e.target.value))}
                       className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
-                      <option value={2026}>Năm 2026</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Graph component */}
-                <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ so sánh tổng thu nhập cả năm {filterYear}</h4>
-                  <div style={{ height: "260px" }}>
-                    <Bar data={barChartData} options={barChartOptions} />
-                  </div>
-                </div>
-
-                {/* Data Table */}
-                <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                  <table className="w-full text-sm text-left">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
-                        <th className="px-4 py-3">Tên Bác sĩ</th>
-                        <th className="px-4 py-3">Học hàm/Học vị</th>
-                        <th className="px-4 py-3 text-right">Tổng thu nhập năm (VNĐ)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allDoctorsYearlySummary.map((d, index) => (
-                        <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
-                          <td className="px-4 py-3 font-bold text-slate-700">Dr. {d.name}</td>
-                          <td className="px-4 py-3 font-semibold text-sky-600">{d.degree}</td>
-                          <td className="px-4 py-3 text-right font-black text-emerald-600 text-base">
-                            {d.totalAmount.toLocaleString("vi-VN")} đ
-                          </td>
-                        </tr>
+                      {[filterYear - 2, filterYear - 1, filterYear, filterYear + 1].map(y => (
+                        <option key={y} value={y}>Năm {y}</option>
                       ))}
-                    </tbody>
-                  </table>
+                    </select>
+                    <button
+                      onClick={() => syncYearlyAllDoctors(filterYear)}
+                      className="px-3.5 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-sm font-bold transition ml-2"
+                      disabled={loadingYearlyAll}
+                    >
+                      {loadingYearlyAll ? "Đang xử lý..." : "🔄 Đồng bộ cả năm"}
+                    </button>
+                  </div>
                 </div>
+
+                {loadingYearlyAll ? (
+                  <div className="flex justify-center items-center py-20">
+                    <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Graph component */}
+                    <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ so sánh tổng thu nhập cả năm {filterYear}</h4>
+                      <div style={{ height: "260px" }}>
+                        <Bar data={barChartData} options={barChartOptions} />
+                      </div>
+                    </div>
+
+                    {/* Data Table */}
+                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                      <table className="w-full text-sm text-left">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+                            <th className="px-4 py-3">Tên Bác sĩ</th>
+                            <th className="px-4 py-3">Học hàm/Học vị</th>
+                            <th className="px-4 py-3 text-right">Tổng thu nhập năm (VNĐ)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allDoctorsYearlySummary.map((d, index) => (
+                            <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
+                              <td className="px-4 py-3 font-bold text-slate-700">Dr. {d.name}</td>
+                              <td className="px-4 py-3 font-semibold text-sky-600">{d.degree}</td>
+                              <td className="px-4 py-3 text-right font-black text-emerald-600 text-base">
+                                {d.totalAmount.toLocaleString("vi-VN")} đ
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

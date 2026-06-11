@@ -376,10 +376,11 @@ function isWeekendDate(dateString) {
 
 // Estimate difficulty score from appointment
 function getDifficultyScore(appointment) {
-  // This can be enhanced by adding difficulty field to Appointment model
-  // For now, use a simple heuristic based on appointment notes
-  if (appointment.doctorNotes && appointment.doctorNotes.length > 100) {
-    return 0.3; // Complex case
+  if (appointment.difficulty !== undefined) {
+    return appointment.difficulty;
   }
-  return 0.0; // Simple case
+  if (appointment.doctorNotes && appointment.doctorNotes.length > 100) {
+    return 0.3; // Complex case fallback
+  }
+  return 0.0; // Simple case fallback
 }

@@ -10,6 +10,7 @@ export interface User {
   dob?: string;
   avatar?: string;
   specialization?: string;
+  degree?: string;
   createdAt?: string;
 }
 

@@ -91,7 +91,8 @@ export default function DoctorAppointments() {
     prescription: "",
     fee: 0,
     notes: "",
-    type: "examination"
+    type: "examination",
+    difficulty: 0.0
   });
 
   const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
@@ -179,7 +180,8 @@ export default function DoctorAppointments() {
       prescription: "",
       fee: apt.fee || serviceFee || 0,
       notes: "",
-      type: "examination"
+      type: "examination",
+      difficulty: 0.0
     });
     setShowExamModal(true);
   };
@@ -204,7 +206,8 @@ export default function DoctorAppointments() {
       // 2. Complete appointment & generate cash payment
       await appointmentApi.complete(selected.id, {
         notes: examForm.notes || examForm.diagnosis,
-        fee: Number(examForm.fee)
+        fee: Number(examForm.fee),
+        difficulty: Number(examForm.difficulty)
       });
       
       // Close exam modal
@@ -793,7 +796,7 @@ export default function DoctorAppointments() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Loại hồ sơ bệnh án</label>
                   <select
@@ -808,7 +811,20 @@ export default function DoctorAppointments() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Chi phí khám &amp; Dịch vụ (VNĐ)</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mức độ khó của ca *</label>
+                  <select
+                    value={examForm.difficulty}
+                    onChange={(e) => setExamForm({ ...examForm, difficulty: Number(e.target.value) })}
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 focus:border-violet-500 focus:outline-none rounded-xl text-sm font-semibold"
+                  >
+                    <option value={0.0}>Thông thường (Hệ số: 0.0)</option>
+                    <option value={0.2}>Trung bình (Hệ số: 0.2)</option>
+                    <option value={0.3}>Phức tạp (Hệ số: 0.3)</option>
+                    <option value={0.5}>Khó nhất (Hệ số: 0.5)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Chi phí khám (VNĐ)</label>
                   <input
                     type="number"
                     value={examForm.fee}

@@ -516,6 +516,9 @@ const complete = async (req, res) => {
     // ── Mark appointment completed ────────────────────────────────────────────
     appointment.status = "completed";
     appointment.doctorNotes = req.body.notes || appointment.doctorNotes || appointment.doctorNotes;
+    if (req.body.difficulty !== undefined) {
+      appointment.difficulty = Number(req.body.difficulty);
+    }
     await appointment.save();
 
     // ── Create Payment record ───────────────────────────────────────────────────

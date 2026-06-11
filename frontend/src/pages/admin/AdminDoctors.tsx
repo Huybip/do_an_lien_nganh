@@ -136,7 +136,9 @@ export default function AdminDoctors() {
                   </div>
 
                   {/* Info */}
-                  <h3 className="text-lg font-bold text-slate-800 mb-1">{doctor.name}</h3>
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">
+                    Dr. {doctor.name} <span className="text-xs font-semibold text-sky-600">({doctor.degree || "Đại học"})</span>
+                  </h3>
                   <p className="text-sm text-slate-500 mb-3">{doctor.email}</p>
 
                   {/* Specialty Badge */}
@@ -235,6 +237,7 @@ function DoctorForm({
     email: doctor?.email || "",
     phone: doctor?.phone || "",
     specialization: doctor?.specialization || "",
+    degree: doctor?.degree || "Đại học",
   });
   const [loading, setLoading] = useState(false);
 
@@ -320,6 +323,29 @@ function DoctorForm({
             {specialties.map((spec) => (
               <option key={spec} value={spec}>{spec}</option>
             ))}
+          </select>
+          <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 mb-2">Học hàm/Bằng cấp</label>
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479L12 20l-6.825-3.037a12.085 12.085 0 01.665-6.479L12 14z" />
+          </svg>
+          <select
+            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all appearance-none"
+            value={form.degree}
+            onChange={(e) => setForm({ ...form, degree: e.target.value })}
+          >
+            <option value="Đại học">Đại học</option>
+            <option value="Thạc sỹ">Thạc sỹ</option>
+            <option value="Tiến sỹ">Tiến sỹ</option>
+            <option value="Phó giáo sư">Phó giáo sư</option>
+            <option value="Giáo sư">Giáo sư</option>
           </select>
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
