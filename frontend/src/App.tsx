@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 // Public Pages
@@ -16,7 +17,6 @@ import AdminAppointments from "./pages/admin/AdminAppointments";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminHelp from "./pages/admin/AdminHelp";
-import AdminScores from "./pages/admin/AdminScores";
 import AdminShifts from "./pages/admin/AdminShifts";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminRecords from "./pages/admin/AdminRecords";
@@ -33,6 +33,7 @@ import DoctorRecords from "./pages/doctor/DoctorRecords";
 import DoctorImages from "./pages/doctor/DoctorImages";
 import DoctorChat from "./pages/doctor/DoctorChat";
 import DoctorProfile from "./pages/doctor/DoctorProfile";
+import DoctorSalary from "./pages/doctor/DoctorSalary";
 
 // Patient
 import PatientDashboard from "./pages/patient/PatientDashboard";
@@ -129,14 +130,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminSettings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/scores"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminScores />
           </ProtectedRoute>
         }
       />
@@ -247,6 +240,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/doctor/salary"
+        element={
+          <ProtectedRoute allowedRoles={["doctor"]}>
+            <DoctorSalary />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Patient */}
       <Route
@@ -330,9 +331,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

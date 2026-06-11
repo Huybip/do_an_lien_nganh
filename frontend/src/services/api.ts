@@ -291,8 +291,12 @@ export const salaryApi = {
     api.post("/salaries/calculate", data),
   get: (doctorId: string, month: number, year: number) =>
     api.get(`/salaries/${doctorId}/${month}/${year}`),
+  getDetail: (salaryId: string) =>
+    api.get(`/salaries/${salaryId}/detail`),
   list: (params?: object) =>
     api.get("/salaries", { params }),
+  mySalaries: (params?: object) =>
+    api.get("/salaries/me", { params }),
   approve: (id: string) =>
     api.put(`/salaries/${id}/approve`),
   markPaid: (id: string) =>

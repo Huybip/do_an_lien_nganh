@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import AdminSidebar from "../../components/layout/AdminSidebar";
 import { doctorApi, salaryApi, shiftApi, unwrap } from "../../services/api";
-import { Line, Bar } from "react-chartjs-2";
+import { Line, Bar, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,6 +9,7 @@ import {
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -21,6 +22,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -31,25 +33,7 @@ ChartJS.register(
 interface PatientCase {
   name: string;
   code: string;
-  difficulty: number; // e.g., 0.0 to 0.5
-}
-
-interface WorkSession {
-  id: string;
-  doctorId: string;
-  doctorName: string;
-  doctorCode: string;
-  doctorDegree: string; // e.g., "Đại học", "Thạc sỹ", etc.
-  date: string; // YYYY-MM-DD
-  shiftName: string;
-  startHour: number;
-  endHour: number;
-  shiftMultiplier: number;
-  patients: PatientCase[];
-  basicHourlyRate: number;
-  totalDifficulty: number;
-  equivalentHours: number;
-  amount: number;
+  difficulty: number;
 }
 
 interface MappedSession {
@@ -67,8 +51,19 @@ interface DoctorDegreeMap {
   [doctorId: string]: string;
 }
 
+interface SalaryDetailModal {
+  salaryRecord: any;
+  enrichedShiftDetails: any[];
+  totalWorkingHours: number;
+  totalDifficulty: number;
+  hardCasesCount: number;
+  hardPatientsCount: number;
+  totalRevenue: number;
+  dailyBreakdown: any[];
+}
+
 export default function AdminSalary() {
-  const [activeMenu, setActiveMenu] = useState<string>("uc4_4"); // Default to Salary Slip
+  const [activeMenu, setActiveMenu] = useState<string>("uc4_4");
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
 
@@ -96,18 +91,25 @@ export default function AdminSalary() {
     "Khó nhất": 0.5,
   });
 
-  // Doctor Degrees mapping (saved to localStorage)
   const [doctorDegrees, setDoctorDegrees] = useState<DoctorDegreeMap>({});
 
   // Backend dynamic state variables
   const [activeSalary, setActiveSalary] = useState<any>(null);
   const [loadingSalary, setLoadingSalary] = useState<boolean>(false);
-  const [allSalaries, setAllSalaries] = useState<any[]>([]); // Month summary report (UC4.5)
+  const [allSalaries, setAllSalaries] = useState<any[]>([]);
   const [loadingSummary, setLoadingSummary] = useState<boolean>(false);
-  const [yearlyTrendData, setYearlyTrendData] = useState<any[]>([]); // 1 Doctor yearly report (UC4.6)
+  const [yearlyTrendData, setYearlyTrendData] = useState<any[]>([]);
   const [loadingYearly, setLoadingYearly] = useState<boolean>(false);
-  const [allDoctorsYearly, setAllDoctorsYearly] = useState<any[]>([]); // All Doctors yearly report (UC4.7)
+  const [allDoctorsYearly, setAllDoctorsYearly] = useState<any[]>([]);
   const [loadingYearlyAll, setLoadingYearlyAll] = useState<boolean>(false);
+
+  // --- NEW: Salary Detail Modal (UC4.5) ---
+  const [detailModal, setDetailModal] = useState<{
+    open: boolean;
+    salaryId: string | null;
+    data: SalaryDetailModal | null;
+    loading: boolean;
+  }>({ open: false, salaryId: null, data: null, loading: false });
 
   // Local state for adding/calculating session
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
@@ -120,33 +122,27 @@ export default function AdminSalary() {
   ]);
 
   // Filters for reports
-  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1); // Default to current month
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear()); // Default to current year
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterDoctorId, setFilterDoctorId] = useState<string>("");
 
   // Load configuration from localStorage
   useEffect(() => {
-    // 1. Basic Hourly Rate
     const savedRate = localStorage.getItem("salary_basic_hourly_rate");
     if (savedRate) setBasicHourlyRate(Number(savedRate));
 
-    // 2. Degree coefficients
     const savedDegrees = localStorage.getItem("salary_degree_coefficients");
     if (savedDegrees) setDegreeCoefficients(JSON.parse(savedDegrees));
 
-    // 3. Shift multipliers
     const savedShifts = localStorage.getItem("salary_shift_multipliers");
     if (savedShifts) setShiftMultipliers(JSON.parse(savedShifts));
 
-    // 4. Difficulty coefficients
     const savedDifficulties = localStorage.getItem("salary_difficulty_coefficients");
     if (savedDifficulties) setDifficultyCoefficients(JSON.parse(savedDifficulties));
 
-    // 5. Doctor degrees mapping
     const savedDocDegrees = localStorage.getItem("salary_doctor_degrees");
     if (savedDocDegrees) setDoctorDegrees(JSON.parse(savedDocDegrees));
   }, []);
-
 
   // Fetch doctors list from API
   useEffect(() => {
@@ -159,8 +155,7 @@ export default function AdminSalary() {
         if (list.length > 0) {
           setSelectedDoctorId(list[0].id || list[0]._id);
           setFilterDoctorId(list[0].id || list[0]._id);
-          
-          // Sync degrees from loaded doctors
+
           const updatedDocDegrees = { ...doctorDegrees };
           let changed = false;
           list.forEach((doc) => {
@@ -223,6 +218,7 @@ export default function AdminSalary() {
         } else {
           const degree = doctorDegrees[docId] || "Đại học";
           return {
+            _id: null,
             doctorId: docId,
             doctorName: doc.name,
             doctorDegree: degree,
@@ -241,6 +237,32 @@ export default function AdminSalary() {
     } finally {
       setLoadingSummary(false);
     }
+  };
+
+  // --- NEW: Fetch salary detail for modal (UC4.5) ---
+  const fetchSalaryDetail = async (salaryId: string) => {
+    setDetailModal(prev => ({ ...prev, loading: true }));
+    try {
+      const res = await salaryApi.getDetail(salaryId);
+      setDetailModal(prev => ({ ...prev, data: unwrap(res), loading: false }));
+    } catch (err) {
+      console.error("Error fetching salary detail:", err);
+      setDetailModal(prev => ({ ...prev, data: null, loading: false }));
+    }
+  };
+
+  const handleOpenDetailModal = async (salaryRecord: any) => {
+    const salaryId = salaryRecord._id;
+    if (!salaryId) {
+      alert("Bản ghi lương chưa được tính toán. Vui lòng đồng bộ trước!");
+      return;
+    }
+    setDetailModal({ open: true, salaryId, data: null, loading: true });
+    await fetchSalaryDetail(salaryId);
+  };
+
+  const handleCloseDetailModal = () => {
+    setDetailModal({ open: false, salaryId: null, data: null, loading: false });
   };
 
   const handleSyncMonthlySummary = async () => {
@@ -262,6 +284,7 @@ export default function AdminSalary() {
           syncedSalaries.push(unwrap(res));
         } catch (err) {
           syncedSalaries.push({
+            _id: null,
             doctorId: docId,
             doctorName: doc.name,
             doctorDegree: degree,
@@ -309,6 +332,8 @@ export default function AdminSalary() {
               totalShifts: 0,
               totalEquivalentHours: 0,
               totalAmount: 0,
+              totalWorkingHours: 0,
+              totalDifficulty: 0,
             };
           }
         })
@@ -329,6 +354,7 @@ export default function AdminSalary() {
       const grouped = doctorsList.map((doc) => {
         const id = doc.id || doc._id;
         const degree = doctorDegrees[id] || "Đại học";
+        const docCoeff = degreeCoefficients[degree] || 1.2;
         const docRecords = records.filter((r: any) => {
           const rDocId = r.doctorId?._id || r.doctorId || "";
           return rDocId === id;
@@ -337,6 +363,7 @@ export default function AdminSalary() {
         return {
           name: doc.name,
           degree,
+          docCoeff,
           totalAmount
         };
       });
@@ -393,15 +420,10 @@ export default function AdminSalary() {
     }
   }, [activeMenu, filterDoctorId, filterMonth, filterYear, doctorsList]);
 
-  const isWeekend = (dateString: string): boolean => {
-    const day = new Date(dateString).getDay();
-    return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
-  };
-
   const getDayOfWeekLabel = (dateString: string): string => {
-    const day = new Date(dateString).getDay();
+    const date = new Date(dateString).getDay();
     const labels = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
-    return labels[day];
+    return labels[date];
   };
 
   // Save configurations
@@ -441,7 +463,7 @@ export default function AdminSalary() {
   const handleDoctorDegreeChange = async (docId: string, degree: string) => {
     const updated = { ...doctorDegrees, [docId]: degree };
     setDoctorDegrees(updated);
-    
+
     try {
       await doctorApi.update(docId, { degree });
     } catch (e) {
@@ -462,7 +484,6 @@ export default function AdminSalary() {
     }
   };
 
-
   const addPatientRow = () => {
     setSessionPatients([...sessionPatients, { name: "", code: "", difficulty: 0.0 }]);
   };
@@ -473,7 +494,6 @@ export default function AdminSalary() {
     setSessionPatients(list);
   };
 
-  // Save Calculated Session by creating real Shifts and Appointments in database
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDoctorId) {
@@ -492,7 +512,6 @@ export default function AdminSalary() {
       const startStr = `${String(sessionStartHour).padStart(2, "0")}:00`;
       const endStr = `${String(sessionEndHour).padStart(2, "0")}:00`;
 
-      // 1. Create a real shift in the shifts database
       await shiftApi.create({
         doctorId: selectedDoctorId,
         date: sessionDate,
@@ -503,7 +522,6 @@ export default function AdminSalary() {
         notes: "Ca trực được tạo từ quản lý lương"
       });
 
-      // 2. Create and complete appointments if patients are supplied
       const validPatients = sessionPatients.filter(p => p.name.trim() !== "");
       if (validPatients.length > 0) {
         const { patientApi, appointmentApi } = await import("../../services/api");
@@ -536,12 +554,10 @@ export default function AdminSalary() {
         }
       }
 
-      alert("Đã thêm ca trực và ca khám thực tế thành công! Hệ thống đang tự động cập nhật phiếu lương.");
-      
-      // Reset Form
+      alert("Đã thêm ca trực và ca khám thực tế thành công!");
+
       setSessionPatients([{ name: "", code: "", difficulty: 0.0 }]);
-      
-      // Refresh active salary
+
       if (selectedDoctorId === filterDoctorId) {
         fetchActiveSalary(filterDoctorId, filterMonth, filterYear);
       }
@@ -579,7 +595,7 @@ export default function AdminSalary() {
     date: s.date,
     shiftName: `Ca ${s.shiftType === "morning" ? "Sáng" : (s.shiftType === "afternoon" ? "Chiều" : "Tối")} (${s.startTime}-${s.endTime})`,
     shiftMultiplier: s.shiftMultiplier,
-    patients: Array.from({ length: s.patientsCount || 0 }), // dummy array for count compatibility
+    patients: Array.from({ length: s.patientsCount || 0 }),
     totalDifficulty: s.totalDifficulty,
     equivalentHours: s.equivalentHours,
     amount: s.shiftAmount
@@ -593,28 +609,33 @@ export default function AdminSalary() {
     totalAmount: activeSalary?.totalAmount || 0
   };
 
-  // All Doctors monthly summary (UC4.5)
+  // All Doctors monthly summary (UC4.5) - with salary ID for modal drill-down
   const allDoctorsMonthlySummary = allSalaries.map((s: any) => {
     const docId = s.doctorId?._id || s.doctorId || "";
     return {
+      _id: s._id || null,
       id: docId,
       name: s.doctorName,
       code: docId.slice(-5).toUpperCase(),
       degree: s.doctorDegree || doctorDegrees[docId] || "Đại học",
       shifts: s.totalShifts || 0,
+      workingHours: s.totalWorkingHours || 0,
       equivHours: s.totalEquivalentHours || 0,
-      totalAmount: s.totalAmount || 0
+      totalDifficulty: s.totalDifficulty || 0,
+      totalAmount: s.totalAmount || 0,
     };
   });
 
-  // Yearly trend data for 1 Doctor (UC4.6)
+  // Yearly trend data for 1 Doctor (UC4.6) - with working hours & difficulty
   const doctorYearlyData = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
     const record = yearlyTrendData.find((r: any) => r.month === m);
     return {
       month: `Tháng ${m}`,
       shifts: record?.totalShifts || 0,
+      workingHours: record?.totalWorkingHours || 0,
       equivHours: record?.totalEquivalentHours || 0,
+      difficulty: record?.totalDifficulty || 0,
       amount: record?.totalAmount || 0
     };
   });
@@ -648,7 +669,15 @@ export default function AdminSalary() {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (ctx: any) => ` Thu nhập: ${ctx.parsed.y.toLocaleString("vi-VN")} đ`
+          label: (ctx: any) => {
+            const rec = doctorYearlyData[ctx.dataIndex];
+            return [
+              ` Thu nhập: ${rec.amount.toLocaleString("vi-VN")} đ`,
+              ` Giờ làm việc: ${rec.workingHours.toFixed(1)} giờ`,
+              ` Số ca khó: ${rec.difficulty > 0 ? Math.round(rec.difficulty / 0.2) : 0} ca`,
+              ` Hệ số lương: ${activeDoctorMultiplier.toFixed(1)}`,
+            ];
+          }
         }
       }
     },
@@ -671,10 +700,10 @@ export default function AdminSalary() {
         label: `Tổng thu nhập năm ${filterYear} (VNĐ)`,
         data: allDoctorsYearlySummary.map(d => d.totalAmount),
         backgroundColor: [
-          "rgba(14, 165, 233, 0.85)", // Sky blue
-          "rgba(16, 185, 129, 0.85)", // Emerald
-          "rgba(139, 92, 246, 0.85)", // Violet
-          "rgba(245, 158, 11, 0.85)", // Amber
+          "rgba(14, 165, 233, 0.85)",
+          "rgba(16, 185, 129, 0.85)",
+          "rgba(139, 92, 246, 0.85)",
+          "rgba(245, 158, 11, 0.85)",
         ],
         borderRadius: 10,
         maxBarThickness: 50
@@ -689,7 +718,13 @@ export default function AdminSalary() {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (ctx: any) => ` Tổng thu nhập: ${ctx.parsed.y.toLocaleString("vi-VN")} đ`
+          label: (ctx: any) => {
+            const rec = allDoctorsYearlySummary[ctx.dataIndex];
+            return [
+              ` Tổng thu nhập: ${rec.totalAmount.toLocaleString("vi-VN")} đ`,
+              ` Hệ số lương: ${rec.docCoeff?.toFixed(1) || "N/A"}`,
+            ];
+          }
         }
       }
     },
@@ -720,7 +755,6 @@ export default function AdminSalary() {
             .meta-table, .detail-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
             .meta-table td { padding: 8px 0; font-size: 14px; }
             .detail-table th, .detail-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 13px; }
-            .detail-table th { bg-color: #f8fafc; font-weight: bold; }
             .total-row { font-weight: bold; background-color: #f1f5f9; }
             .formula-info { margin-top: 30px; font-size: 12px; color: #64748b; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 8px; }
           </style>
@@ -813,11 +847,29 @@ export default function AdminSalary() {
   ];
 
   const hourlyRateBadge = (
-    <div className="text-right bg-sky-50 border border-sky-100 rounded-xl px-4 py-1.5 flex-shrink-0 animate-fade-in shadow-sm select-none">
+    <div className="text-right bg-sky-50 border border-sky-100 rounded-xl px-4 py-1.5 flex-shrink-0 shadow-sm select-none">
       <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest leading-none">Đơn giá cơ bản</p>
       <p className="text-sm font-black text-sky-700 mt-1 leading-none">{basicHourlyRate.toLocaleString("vi-VN")} đ/h</p>
     </div>
   );
+
+  // --- Difficulty badge helper ---
+  const getDifficultyBadge = (difficulty: number) => {
+    if (difficulty === 0.5) return <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">Khó nhất</span>;
+    if (difficulty === 0.3) return <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">Phức tạp</span>;
+    if (difficulty === 0.2) return <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Trung bình</span>;
+    return <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs font-bold">Thông thường</span>;
+  };
+
+  const getShiftBadge = (shiftType: string, isWeekend: boolean) => {
+    const colors = isWeekend
+      ? "bg-violet-100 text-violet-700"
+      : shiftType === "evening"
+        ? "bg-blue-100 text-blue-700"
+        : "bg-sky-100 text-sky-700";
+    const label = shiftType === "morning" ? "Sáng" : shiftType === "afternoon" ? "Chiều" : "Tối";
+    return <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colors}`}>{label}</span>;
+  };
 
   return (
     <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
@@ -833,9 +885,9 @@ export default function AdminSalary() {
 
         {/* Master-Detail Page Body */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          
-          {/* LEFT SUBMENU PANEL (2-level hierarchy) */}
-          <div className="w-full md:w-64 bg-white/60 backdrop-blur border-r border-slate-200/80 p-4.5 space-y-6">
+
+          {/* LEFT SUBMENU PANEL */}
+          <div className="w-full md:w-64 bg-white/60 backdrop-blur border-r border-slate-200/80 p-4 space-y-6">
             {menuConfig.map((cat) => (
               <div key={cat.category} className="space-y-2">
                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-2.5">
@@ -869,7 +921,7 @@ export default function AdminSalary() {
 
             {/* UC4.1: Hourly wage setting */}
             {activeMenu === "uc4_1" && (
-              <div className="card p-6 border border-slate-100 max-w-2xl animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 max-w-2xl space-y-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white text-2xl shadow-lg">
                     💰
@@ -914,7 +966,7 @@ export default function AdminSalary() {
 
             {/* UC4.2: Day of week coefficients */}
             {activeMenu === "uc4_2" && (
-              <div className="card p-6 border border-slate-100 max-w-5xl animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 max-w-5xl space-y-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-white text-2xl shadow-lg">
                     📅
@@ -926,7 +978,6 @@ export default function AdminSalary() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Weekdays */}
                   <div className="space-y-4">
                     <h4 className="font-bold text-slate-700 text-sm border-b pb-2 flex items-center gap-2">
                       <span>📆 Ngày trong tuần (Thứ 2 - Thứ 6)</span>
@@ -951,7 +1002,6 @@ export default function AdminSalary() {
                     </div>
                   </div>
 
-                  {/* Weekends */}
                   <div className="space-y-4">
                     <h4 className="font-bold text-slate-700 text-sm border-b pb-2 flex items-center gap-2">
                       <span>🏖️ Ngày cuối tuần (Thứ 7 - Chủ Nhật)</span>
@@ -990,7 +1040,7 @@ export default function AdminSalary() {
 
             {/* UC4.3: Patient difficulty */}
             {activeMenu === "uc4_3" && (
-              <div className="card p-6 border border-slate-100 max-w-2xl animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 max-w-2xl space-y-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white text-2xl shadow-lg">
                     🦷
@@ -1034,12 +1084,11 @@ export default function AdminSalary() {
 
             {/* UC4.4: Salary Slip and Calculator */}
             {activeMenu === "uc4_4" && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
-                
+              <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {/* Salary Slip Generator (Left 3 cols on xl) */}
                 <div className="lg:col-span-2 xl:col-span-3 space-y-6">
                   <div className="card p-6 border border-slate-100 space-y-5">
-                    
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                       <div className="flex items-center gap-4">
                         <div>
@@ -1049,7 +1098,6 @@ export default function AdminSalary() {
                         {hourlyRateBadge}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Month */}
                         <select
                           value={filterMonth}
                           onChange={(e) => setFilterMonth(Number(e.target.value))}
@@ -1059,7 +1107,6 @@ export default function AdminSalary() {
                             <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
                           ))}
                         </select>
-                        {/* Doctor */}
                         <select
                           value={filterDoctorId}
                           onChange={(e) => setFilterDoctorId(e.target.value)}
@@ -1169,7 +1216,7 @@ export default function AdminSalary() {
                   </div>
                 </div>
 
-                {/* Form to Add New Work Session (Right 1 col) */}
+                {/* Form to Add New Work Session */}
                 <div className="space-y-6">
                   <form onSubmit={handleSaveSession} className="card p-6 border border-slate-100 space-y-4">
                     <div className="border-b pb-2">
@@ -1300,36 +1347,34 @@ export default function AdminSalary() {
                       ))}
                     </div>
 
-
-
                     <button
                       type="submit"
-                      className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-xl text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
+                      disabled={loadingSalary}
+                      className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold rounded-xl text-sm hover:-translate-y-0.5 hover:shadow-lg transition-all disabled:opacity-60"
                     >
-                      Lưu và cộng vào phiếu lương
+                      {loadingSalary ? "Đang xử lý..." : "Lưu và cộng vào phiếu lương"}
                     </button>
                   </form>
                 </div>
-
               </div>
             )}
 
             {/* UC4.5: Monthly Salary Report of all Doctors */}
             {activeMenu === "uc4_5" && (
-              <div className="card p-6 border border-slate-100 animate-fade-in space-y-5">
+              <div className="card p-6 border border-slate-100 space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div className="flex items-center gap-4">
                     <div>
                       <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương tất cả bác sĩ</h3>
-                      <p className="text-sm text-slate-500">Tổng hợp thu nhập thanh toán trong tháng</p>
+                      <p className="text-sm text-slate-500">Tổng hợp thu nhập thanh toán trong tháng — Nhấn vào bác sĩ để xem chi tiết</p>
                     </div>
                     {hourlyRateBadge}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <select
                       value={filterMonth}
                       onChange={(e) => setFilterMonth(Number(e.target.value))}
-                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50 animate-scale-in"
+                      className="px-3.5 py-2.5 border rounded-xl text-sm font-bold bg-slate-50"
                     >
                       {Array.from({ length: 12 }, (_, i) => (
                         <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
@@ -1346,7 +1391,7 @@ export default function AdminSalary() {
                     </select>
                     <button
                       onClick={handleSyncMonthlySummary}
-                      className="px-3.5 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-sm font-bold transition mr-1"
+                      className="px-3.5 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-sm font-bold transition"
                       disabled={loadingSummary}
                     >
                       {loadingSummary ? "Đang xử lý..." : "🔄 Đồng bộ & Làm mới"}
@@ -1355,8 +1400,8 @@ export default function AdminSalary() {
                       onClick={() => {
                         const csvContent = [
                           "BÁO CÁO TIỀN LƯƠNG TẤT CẢ BÁC SĨ THÁNG " + filterMonth + "/" + filterYear,
-                          "Mã Bác sĩ,Họ tên,Học vị,Số ca trực,Giờ quy đổi,Thành tiền (VND)",
-                          ...allDoctorsMonthlySummary.map(d => `${d.code},${d.name},${d.degree},${d.shifts},${d.equivHours},${d.totalAmount}`)
+                          "Mã Bác sĩ,Họ tên,Học vị,Số ca trực,Giờ làm việc,Giờ quy đổi,Tổng HS độ khó,Thành tiền (VND)",
+                          ...allDoctorsMonthlySummary.map(d => `${d.code},${d.name},${d.degree},${d.shifts},${d.workingHours.toFixed(1)},${d.equivHours},${d.totalDifficulty},${d.totalAmount}`)
                         ].join("\n");
                         const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
                         const url = window.URL.createObjectURL(blob);
@@ -1367,7 +1412,7 @@ export default function AdminSalary() {
                       }}
                       className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold transition"
                     >
-                      📥 Xuất báo cáo CSV
+                      📥 Xuất CSV
                     </button>
                   </div>
                 </div>
@@ -1381,27 +1426,53 @@ export default function AdminSalary() {
                     <table className="w-full text-sm text-left">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-150 text-xs font-bold text-slate-500 uppercase">
-                          <th className="px-6 py-4">Mã số</th>
-                          <th className="px-6 py-4">Bác sĩ</th>
-                          <th className="px-6 py-4">Học vị / Bằng cấp</th>
-                          <th className="px-6 py-4 text-center">Số ca làm</th>
-                          <th className="px-6 py-4 text-center">Số giờ quy đổi (QĐ)</th>
-                          <th className="px-6 py-4 text-right">Lương thực lĩnh (VNĐ)</th>
+                          <th className="px-4 py-4">Mã số</th>
+                          <th className="px-4 py-4">Bác sĩ</th>
+                          <th className="px-4 py-4">Học vị / Bằng cấp</th>
+                          <th className="px-4 py-4 text-center">Hệ số lương</th>
+                          <th className="px-4 py-4 text-center">Số ca làm</th>
+                          <th className="px-4 py-4 text-center">Giờ làm việc</th>
+                          <th className="px-4 py-4 text-center">Số ca khó</th>
+                          <th className="px-4 py-4 text-center">Tổng HS độ khó</th>
+                          <th className="px-4 py-4 text-right">Lương thực lĩnh (VNĐ)</th>
+                          <th className="px-4 py-4 text-center">Chi tiết</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {allDoctorsMonthlySummary.map((d) => (
-                          <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="px-6 py-4 font-bold text-slate-400">#{d.code}</td>
-                            <td className="px-6 py-4 font-bold text-slate-700">Dr. {d.name}</td>
-                            <td className="px-6 py-4 font-semibold text-sky-600">{d.degree}</td>
-                            <td className="px-6 py-4 text-center font-medium text-slate-600">{d.shifts}</td>
-                            <td className="px-6 py-4 text-center font-bold text-indigo-500">{d.equivHours}</td>
-                            <td className="px-6 py-4 text-right font-black text-emerald-600 text-lg">
-                              {d.totalAmount.toLocaleString("vi-VN")} đ
-                            </td>
-                          </tr>
-                        ))}
+                        {allDoctorsMonthlySummary.map((d) => {
+                          const degreeCoeff = degreeCoefficients[d.degree] || 1.2;
+                          return (
+                            <tr key={d.id} className="border-b border-slate-100 hover:bg-sky-50/40 cursor-pointer transition">
+                              <td className="px-4 py-4 font-bold text-slate-400">#{d.code}</td>
+                              <td className="px-4 py-4 font-bold text-slate-700">Dr. {d.name}</td>
+                              <td className="px-4 py-4 font-semibold text-sky-600">{d.degree}</td>
+                              <td className="px-4 py-4 text-center">
+                                <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black">{degreeCoeff.toFixed(1)}</span>
+                              </td>
+                              <td className="px-4 py-4 text-center font-medium text-slate-600">{d.shifts}</td>
+                              <td className="px-4 py-4 text-center font-bold text-slate-700">{d.workingHours.toFixed(1)}</td>
+                              <td className="px-4 py-4 text-center">
+                                {d.totalDifficulty > 0 ? (
+                                  <span className="px-2 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold">{Math.round(d.totalDifficulty / 0.2)} ca</span>
+                                ) : (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-400 rounded-full text-xs font-bold">0 ca</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-4 text-center font-bold text-orange-500">{d.totalDifficulty.toFixed(2)}</td>
+                              <td className="px-4 py-4 text-right font-black text-emerald-600 text-lg">
+                                {d.totalAmount.toLocaleString("vi-VN")} đ
+                              </td>
+                              <td className="px-4 py-4 text-center">
+                                <button
+                                  onClick={() => handleOpenDetailModal(d as any)}
+                                  className="px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg text-xs font-bold transition"
+                                >
+                                  📋 Xem chi tiết
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}
@@ -1409,14 +1480,14 @@ export default function AdminSalary() {
               </div>
             )}
 
-            {/* UC4.6: Yearly Salary Report of 1 Doctor (with Chart) */}
+            {/* UC4.6: Yearly Salary Report of 1 Doctor (with enhanced Chart + Table) */}
             {activeMenu === "uc4_6" && (
-              <div className="card p-6 border border-slate-100 animate-fade-in space-y-6">
+              <div className="card p-6 border border-slate-100 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div className="flex items-center gap-4">
                     <div>
                       <h3 className="font-bold text-slate-800 text-xl">Báo cáo tiền lương năm của Bác sĩ</h3>
-                      <p className="text-sm text-slate-500">Theo dõi xu hướng thu nhập 12 tháng của bác sĩ</p>
+                      <p className="text-sm text-slate-500">Biểu đồ doanh thu, giờ làm việc, ca khó và hệ số lương 12 tháng</p>
                     </div>
                     {hourlyRateBadge}
                   </div>
@@ -1442,29 +1513,72 @@ export default function AdminSalary() {
                   </div>
                 </div>
 
+                {/* Doctor info card */}
+                {activeDoctorInfo && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-indigo-400 font-semibold uppercase text-xs">Bác sĩ</p>
+                      <p className="font-bold text-slate-700 mt-0.5">Dr. {activeDoctorInfo.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-indigo-400 font-semibold uppercase text-xs">Học vị</p>
+                      <p className="font-bold text-sky-700 mt-0.5">{activeDoctorDegree}</p>
+                    </div>
+                    <div>
+                      <p className="text-indigo-400 font-semibold uppercase text-xs">Hệ số lương</p>
+                      <p className="font-black text-2xl text-indigo-700 mt-0.5">{activeDoctorMultiplier.toFixed(1)}</p>
+                    </div>
+                    <div>
+                      <p className="text-indigo-400 font-semibold uppercase text-xs">Đơn giá</p>
+                      <p className="font-bold text-slate-700 mt-0.5">{basicHourlyRate.toLocaleString("vi-VN")} đ/h</p>
+                    </div>
+                  </div>
+                )}
+
                 {loadingYearly ? (
                   <div className="flex justify-center items-center py-20">
                     <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-600 rounded-full animate-spin" />
                   </div>
                 ) : (
                   <>
-                    {/* Graph component */}
+                    {/* Enhanced Chart with hours, difficulty, and coefficient */}
                     <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
-                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ xu hướng thu nhập năm {filterYear}</h4>
-                      <div style={{ height: "260px" }}>
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">
+                        Biểu đồ thu nhập &amp; giờ làm việc năm {filterYear}
+                      </h4>
+                      <div style={{ height: "280px" }}>
                         <Line data={lineChartData} options={lineChartOptions} />
+                      </div>
+                      {/* Legend */}
+                      <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-slate-200">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                          <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span>
+                          Thu nhập (VNĐ)
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                          <span className="w-3 h-3 rounded-full bg-sky-400 inline-block"></span>
+                          Giờ làm việc
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                          <span className="w-3 h-3 rounded-full bg-red-400 inline-block"></span>
+                          Số ca khó
+                        </div>
                       </div>
                     </div>
 
-                    {/* Data Table */}
+                    {/* Data Table with all metrics */}
                     <div className="overflow-x-auto border border-slate-100 rounded-xl">
                       <table className="w-full text-sm text-left">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
                             <th className="px-4 py-3">Tháng</th>
                             <th className="px-4 py-3 text-center">Số ca trực</th>
-                            <th className="px-4 py-3 text-center">Số giờ quy đổi (QĐ)</th>
-                            <th className="px-4 py-3 text-right">Lương thực lĩnh</th>
+                            <th className="px-4 py-3 text-center">Giờ làm việc</th>
+                            <th className="px-4 py-3 text-center">Giờ quy đổi</th>
+                            <th className="px-4 py-3 text-center">Số ca khó</th>
+                            <th className="px-4 py-3 text-center">Tổng HS độ khó</th>
+                            <th className="px-4 py-3 text-center">Hệ số lương</th>
+                            <th className="px-4 py-3 text-right">Lương thực lĩnh (VNĐ)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1472,11 +1586,50 @@ export default function AdminSalary() {
                             <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
                               <td className="px-4 py-3 font-bold text-slate-700">{d.month}</td>
                               <td className="px-4 py-3 text-center text-slate-500">{d.shifts}</td>
-                              <td className="px-4 py-3 text-center font-bold text-indigo-500">{d.equivHours}</td>
+                              <td className="px-4 py-3 text-center font-bold text-sky-600">{d.workingHours.toFixed(1)} giờ</td>
+                              <td className="px-4 py-3 text-center font-bold text-indigo-500">{d.equivHours.toFixed(2)}</td>
+                              <td className="px-4 py-3 text-center">
+                                {d.difficulty > 0 ? (
+                                  <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-full text-xs font-bold">{Math.round(d.difficulty / 0.2)} ca</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-400 rounded-full text-xs font-bold">0 ca</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center font-bold text-orange-500">{d.difficulty.toFixed(2)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black">{activeDoctorMultiplier.toFixed(1)}</span>
+                              </td>
                               <td className="px-4 py-3 text-right font-bold text-emerald-600">{d.amount.toLocaleString("vi-VN")} đ</td>
                             </tr>
                           ))}
                         </tbody>
+                        {/* Yearly total row */}
+                        <tfoot>
+                          <tr className="bg-indigo-50 border-t-2 border-indigo-200">
+                            <td className="px-4 py-3.5 font-black text-slate-700">Tổng cả năm</td>
+                            <td className="px-4 py-3.5 text-center font-black text-slate-700">
+                              {doctorYearlyData.reduce((s, d) => s + d.shifts, 0)}
+                            </td>
+                            <td className="px-4 py-3.5 text-center font-black text-sky-600">
+                              {doctorYearlyData.reduce((s, d) => s + d.workingHours, 0).toFixed(1)} giờ
+                            </td>
+                            <td className="px-4 py-3.5 text-center font-black text-indigo-600">
+                              {doctorYearlyData.reduce((s, d) => s + d.equivHours, 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3.5 text-center font-black text-red-600">
+                              {doctorYearlyData.reduce((s, d) => s + (d.difficulty > 0 ? Math.round(d.difficulty / 0.2) : 0), 0)} ca
+                            </td>
+                            <td className="px-4 py-3.5 text-center font-black text-orange-600">
+                              {doctorYearlyData.reduce((s, d) => s + d.difficulty, 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3.5 text-center font-black text-indigo-700">
+                              <span className="px-2 py-1 bg-indigo-200 text-indigo-800 rounded-lg text-xs font-black">{activeDoctorMultiplier.toFixed(1)}</span>
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-black text-emerald-700 text-lg">
+                              {doctorYearlyData.reduce((s, d) => s + d.amount, 0).toLocaleString("vi-VN")} đ
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   </>
@@ -1484,9 +1637,9 @@ export default function AdminSalary() {
               </div>
             )}
 
-            {/* UC4.7: Yearly Salary Report of all Doctors (with comparison Chart) */}
+            {/* UC4.7: Yearly Salary Report of all Doctors */}
             {activeMenu === "uc4_7" && (
-              <div className="card p-6 border border-slate-100 animate-fade-in space-y-6">
+              <div className="card p-6 border border-slate-100 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div className="flex items-center gap-4">
                     <div>
@@ -1521,7 +1674,7 @@ export default function AdminSalary() {
                   </div>
                 ) : (
                   <>
-                    {/* Graph component */}
+                    {/* Chart */}
                     <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5">
                       <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Biểu đồ so sánh tổng thu nhập cả năm {filterYear}</h4>
                       <div style={{ height: "260px" }}>
@@ -1536,6 +1689,7 @@ export default function AdminSalary() {
                           <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
                             <th className="px-4 py-3">Tên Bác sĩ</th>
                             <th className="px-4 py-3">Học hàm/Học vị</th>
+                            <th className="px-4 py-3 text-center">Hệ số lương</th>
                             <th className="px-4 py-3 text-right">Tổng thu nhập năm (VNĐ)</th>
                           </tr>
                         </thead>
@@ -1544,6 +1698,9 @@ export default function AdminSalary() {
                             <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/40">
                               <td className="px-4 py-3 font-bold text-slate-700">Dr. {d.name}</td>
                               <td className="px-4 py-3 font-semibold text-sky-600">{d.degree}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black">{d.docCoeff?.toFixed(1) || "N/A"}</span>
+                              </td>
                               <td className="px-4 py-3 text-right font-black text-emerald-600 text-base">
                                 {d.totalAmount.toLocaleString("vi-VN")} đ
                               </td>
@@ -1558,10 +1715,335 @@ export default function AdminSalary() {
             )}
 
           </div>
-
         </div>
-
       </div>
+
+      {/* ──────────────────────────────────────────────── */}
+      {/* UC4.5 MODAL: Salary Detail for one Doctor */}
+      {/* ──────────────────────────────────────────────── */}
+      {detailModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col animate-scale-in">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-sky-50 to-blue-50">
+              <div>
+                <h2 className="font-black text-slate-800 text-lg">
+                  📋 Chi tiết lương tháng {filterMonth}/{filterYear}
+                </h2>
+                {detailModal.data && (
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Bác sĩ: <span className="font-bold text-sky-700">{detailModal.data.salaryRecord?.doctorName}</span>
+                    {" | "}
+                    Học vị: <span className="font-bold text-slate-700">{detailModal.data.salaryRecord?.doctorDegree || "Đại học"}</span>
+                    {" | "}
+                    Hệ số lương: <span className="font-black text-indigo-600">{degreeCoefficients[detailModal.data.salaryRecord?.doctorDegree]?.toFixed(1) || "1.2"}</span>
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={handleCloseDetailModal}
+                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600 flex items-center justify-center font-bold text-lg transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {detailModal.loading ? (
+                <div className="flex justify-center items-center py-20">
+                  <div className="w-10 h-10 border-4 border-sky-500/30 border-t-sky-600 rounded-full animate-spin" />
+                </div>
+              ) : detailModal.data ? (
+                <>
+                  {/* Summary Stats Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      {
+                        label: "Tổng giờ làm việc",
+                        value: detailModal.data.totalWorkingHours.toFixed(1),
+                        suffix: "giờ",
+                        color: "text-sky-600",
+                        bg: "bg-sky-50 border-sky-100"
+                      },
+                      {
+                        label: "Số ca khó",
+                        value: detailModal.data.hardCasesCount.toString(),
+                        suffix: "ca",
+                        color: "text-red-600",
+                        bg: "bg-red-50 border-red-100"
+                      },
+                      {
+                        label: "Số BN khó",
+                        value: detailModal.data.hardPatientsCount.toString(),
+                        suffix: "bệnh nhân",
+                        color: "text-orange-600",
+                        bg: "bg-orange-50 border-orange-100"
+                      },
+                      {
+                        label: "Doanh thu tháng",
+                        value: detailModal.data.totalRevenue.toLocaleString("vi-VN"),
+                        suffix: "đ",
+                        color: "text-emerald-600",
+                        bg: "bg-emerald-50 border-emerald-100"
+                      },
+                    ].map((stat, idx) => (
+                      <div key={idx} className={`rounded-2xl p-4 border text-center ${stat.bg}`}>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                        <p className={`font-black text-2xl mt-1 ${stat.color}`}>
+                          {stat.value}
+                          <span className="text-xs font-normal ml-0.5">{stat.suffix}</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Salary breakdown + chart side by side */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Shift summary table */}
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+                        <h4 className="font-bold text-slate-700 text-sm">📅 Chi tiết từng ca làm việc</h4>
+                      </div>
+                      <div className="overflow-y-auto max-h-80">
+                        <table className="w-full text-xs">
+                          <thead className="bg-slate-50 sticky top-0">
+                            <tr className="text-slate-400 font-bold uppercase text-[10px]">
+                              <th className="px-3 py-2 text-left">Ngày</th>
+                              <th className="px-3 py-2 text-center">Ca</th>
+                              <th className="px-3 py-2 text-center">Giờ</th>
+                              <th className="px-3 py-2 text-center">BN</th>
+                              <th className="px-3 py-2 text-center">HS khó</th>
+                              <th className="px-3 py-2 text-center">Giờ QĐ</th>
+                              <th className="px-3 py-2 text-right">Thành tiền</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detailModal.data.enrichedShiftDetails.map((shift: any) => (
+                              <tr key={shift._id} className="border-b border-slate-50 hover:bg-sky-50/30">
+                                <td className="px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">{shift.date}</td>
+                                <td className="px-3 py-2 text-center">{getShiftBadge(shift.shiftType, shift.isWeekend)}</td>
+                                <td className="px-3 py-2 text-center font-semibold text-slate-600">{shift.workingHours.toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-slate-500">{shift.patientsCount}</td>
+                                <td className="px-3 py-2 text-center">
+                                  {shift.totalDifficulty > 0 ? (
+                                    <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-bold">{shift.totalDifficulty.toFixed(2)}</span>
+                                  ) : (
+                                    <span className="text-slate-300 text-[10px]">-</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-center font-bold text-indigo-500">{shift.equivalentHours.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-right font-bold text-emerald-600">{shift.shiftAmount.toLocaleString("vi-VN")} đ</td>
+                              </tr>
+                            ))}
+                            {detailModal.data.enrichedShiftDetails.length === 0 && (
+                              <tr>
+                                <td colSpan={7} className="text-center py-8 text-slate-400 italic">
+                                  Không có ca làm việc nào trong tháng này.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-indigo-50 font-black text-xs">
+                              <td className="px-3 py-2 text-slate-700" colSpan={2}>Tổng cộng</td>
+                              <td className="px-3 py-2 text-center text-slate-700">{detailModal.data.totalWorkingHours.toFixed(1)}</td>
+                              <td className="px-3 py-2"></td>
+                              <td className="px-3 py-2 text-center text-orange-600">{detailModal.data.totalDifficulty.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-center text-indigo-700">
+                                {(detailModal.data.enrichedShiftDetails as any[]).reduce((s: number, sh: any) => s + sh.equivalentHours, 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2 text-right text-emerald-700">
+                                {detailModal.data.salaryRecord?.totalAmount?.toLocaleString("vi-VN")} đ
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Doughnut chart: Difficulty distribution */}
+                    <div className="border border-slate-100 rounded-2xl p-4">
+                      <h4 className="font-bold text-slate-700 text-sm mb-4">📊 Phân bố mức độ khó ca khám</h4>
+                      <div className="flex items-center justify-center" style={{ height: "220px" }}>
+                        {detailModal.data.hardPatientsCount > 0 ? (
+                          <Doughnut
+                            data={{
+                              labels: ["Thông thường", "Trung bình", "Phức tạp", "Khó nhất"],
+                              datasets: [{
+                                data: [
+                                  detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0).length, 0),
+                                  detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0.2).length, 0),
+                                  detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0.3).length, 0),
+                                  detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0.5).length, 0),
+                                ],
+                                backgroundColor: ["#e2e8f0", "#fde68a", "#fed7aa", "#fecaca"],
+                                borderColor: ["#94a3b8", "#f59e0b", "#f97316", "#ef4444"],
+                                borderWidth: 2,
+                              }]
+                            }}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: { position: "bottom", labels: { font: { size: 12 }, padding: 16 } },
+                                tooltip: {
+                                  callbacks: {
+                                    label: (ctx) => ` ${ctx.label}: ${ctx.parsed} bệnh nhân`,
+                                  }
+                                }
+                              },
+                              cutout: "55%",
+                            }}
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                            <span className="text-4xl">📭</span>
+                            <p className="text-sm font-semibold mt-2">Không có dữ liệu ca khó</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Difficulty legend */}
+                      <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                        {[
+                          { label: "Khó nhất (0.5)", color: "bg-red-100 text-red-700", count: detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0.5).length, 0) },
+                          { label: "Phức tạp (0.3)", color: "bg-orange-100 text-orange-700", count: detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0.3).length, 0) },
+                          { label: "Trung bình (0.2)", color: "bg-yellow-100 text-yellow-700", count: detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0.2).length, 0) },
+                          { label: "Thông thường (0.0)", color: "bg-gray-100 text-gray-500", count: detailModal.data.enrichedShiftDetails.reduce((s: number, sh: any) => s + sh.appointments.filter((a: any) => a.difficulty === 0).length, 0) },
+                        ].map((item) => (
+                          <div key={item.label} className="flex justify-between items-center">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.color}`}>{item.label}</span>
+                            <span className="font-bold text-slate-700 text-sm">{item.count} bệnh nhân</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Patient details per shift */}
+                  {detailModal.data.enrichedShiftDetails.some((sh: any) => sh.appointments.length > 0) && (
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+                        <h4 className="font-bold text-slate-700 text-sm">🦷 Chi tiết từng bệnh nhân đã khám trong tháng</h4>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-slate-50">
+                            <tr className="text-slate-400 font-bold uppercase text-[10px]">
+                              <th className="px-3 py-2 text-left">Ngày</th>
+                              <th className="px-3 py-2 text-left">Ca</th>
+                              <th className="px-3 py-2 text-left">Bệnh nhân</th>
+                              <th className="px-3 py-2 text-left">Dịch vụ</th>
+                              <th className="px-3 py-2 text-center">Độ khó</th>
+                              <th className="px-3 py-2 text-right">Phí khám</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detailModal.data.enrichedShiftDetails.flatMap((shift: any) =>
+                              shift.appointments.map((apt: any) => (
+                                <tr key={apt._id} className="border-b border-slate-50 hover:bg-slate-50/30">
+                                  <td className="px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">{shift.date}</td>
+                                  <td className="px-3 py-2">{getShiftBadge(shift.shiftType, shift.isWeekend)}</td>
+                                  <td className="px-3 py-2 font-semibold text-slate-700">{apt.patientName}</td>
+                                  <td className="px-3 py-2 text-slate-500">{apt.serviceName}</td>
+                                  <td className="px-3 py-2 text-center">{getDifficultyBadge(apt.difficulty)}</td>
+                                  <td className="px-3 py-2 text-right font-bold text-emerald-600">
+                                    {apt.fee > 0 ? `${apt.fee.toLocaleString("vi-VN")} đ` : <span className="text-slate-300">-</span>}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Total Salary Summary */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-5">
+                    <h4 className="font-bold text-slate-700 text-sm mb-4">💰 Tổng kết lương tháng</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase">Hệ số bằng cấp</p>
+                        <p className="font-black text-indigo-700 text-lg mt-0.5">
+                          {(degreeCoefficients[detailModal.data.salaryRecord?.doctorDegree] || 1.2).toFixed(1)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase">Đơn giá/giờ</p>
+                        <p className="font-black text-slate-700 text-lg mt-0.5">
+                          {basicHourlyRate.toLocaleString("vi-VN")} đ
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase">Tổng giờ quy đổi</p>
+                        <p className="font-black text-sky-700 text-lg mt-0.5">
+                          {detailModal.data.salaryRecord?.totalEquivalentHours?.toFixed(2)} giờ
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase">Tổng lương thực nhận</p>
+                        <p className="font-black text-emerald-700 text-2xl mt-0.5">
+                          {detailModal.data.salaryRecord?.totalAmount?.toLocaleString("vi-VN")} đ
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-indigo-200">
+                      <p className="text-xs text-slate-500">
+                        <strong>Công thức:</strong> Lương = Giờ quy đổi × Hệ số bằng cấp × Đơn giá
+                        <br />
+                        Giờ quy đổi = Giờ làm việc × (Hệ số ca + Tổng hệ số độ khó bệnh nhân)
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12 text-slate-400">
+                  Không có dữ liệu chi tiết. Vui lòng thử lại.
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+              <button
+                onClick={handleCloseDetailModal}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition"
+              >
+                Đóng
+              </button>
+              {detailModal.data && (
+                <button
+                  onClick={() => {
+                    const d = detailModal.data!;
+                    const csvContent = [
+                      `CHI TIẾT LƯƠNG THÁNG ${filterMonth}/${filterYear} - Bác sĩ: ${d.salaryRecord?.doctorName}`,
+                      `Học vị: ${d.salaryRecord?.doctorDegree} | Hệ số lương: ${degreeCoefficients[d.salaryRecord?.doctorDegree]?.toFixed(1) || "1.2"} | Đơn giá: ${basicHourlyRate.toLocaleString("vi-VN")} đ/h`,
+                      "",
+                      "Ngày,Ca,Giờ làm,BN,Số BN khó,Tổng HS khó,Giờ QĐ,Thành tiền",
+                      ...d.enrichedShiftDetails.map((sh: any) =>
+                        `${sh.date},${sh.shiftType},${sh.workingHours},${sh.patientsCount},${sh.appointments.filter((a: any) => a.difficulty > 0).length},${sh.totalDifficulty},${sh.equivalentHours},${sh.shiftAmount}`
+                      ),
+                      "",
+                      `Tổng cộng:,,,${d.totalWorkingHours.toFixed(1)} giờ làm,${d.hardPatientsCount} BN khó,${d.totalDifficulty.toFixed(2)},,${d.salaryRecord?.totalAmount?.toLocaleString("vi-VN")} đ`,
+                    ].join("\n");
+                    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `chi-tiet-luong-${d.salaryRecord?.doctorName}-thang-${filterMonth}-${filterYear}.csv`;
+                    a.click();
+                  }}
+                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition"
+                >
+                  📥 Xuất chi tiết CSV
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

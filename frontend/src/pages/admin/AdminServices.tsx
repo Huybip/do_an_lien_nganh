@@ -94,6 +94,31 @@ export default function AdminServices() {
       ),
     },
     {
+      key: "difficultyLevel",
+      header: "ĐỘ KHÓ",
+      render: (s: Service) => {
+        const level = s.difficultyLevel ?? 0;
+        const labels: Record<number, { label: string; bg: string; text: string; border: string }> = {
+          0:   { label: "Thông thường", bg: "bg-slate-50",  text: "text-slate-600",  border: "border-slate-200" },
+          0.2: { label: "Trung bình",    bg: "bg-amber-50",  text: "text-amber-700",  border: "border-amber-200" },
+          0.3: { label: "Phức tạp",     bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+          0.5: { label: "Khó nhất",     bg: "bg-red-50",    text: "text-red-700",    border: "border-red-200" },
+        };
+        const cfg = labels[level] || labels[0];
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              level === 0 ? "bg-slate-400" :
+              level === 0.2 ? "bg-amber-400" :
+              level === 0.3 ? "bg-orange-400" :
+              "bg-red-500"
+            }`}></span>
+            {cfg.label}
+          </span>
+        );
+      },
+    },
+    {
       key: "active",
       header: "TRẠNG THÁI",
       render: (s: Service) => (
@@ -259,6 +284,7 @@ function ServiceForm({
     price: service?.price || 0,
     category: service?.category || "Preventive",
     active: service?.active !== false,
+    difficultyLevel: service?.difficultyLevel ?? 0,
   });
   const [loading, setLoading] = useState(false);
 
@@ -280,6 +306,13 @@ function ServiceForm({
     { value: "Cosmetic", label: "Thẩm mỹ", color: "violet" },
     { value: "Emergency", label: "Cấp cứu", color: "red" },
     { value: "General", label: "Tổng quát", color: "slate" },
+  ];
+
+  const difficultyLevels = [
+    { value: 0,   label: "Thông thường", description: "Không cộng thêm hệ số", color: "slate" },
+    { value: 0.2, label: "Trung bình",    description: "+0.2 vào hệ số độ khó", color: "amber" },
+    { value: 0.3, label: "Phức tạp",     description: "+0.3 vào hệ số độ khó", color: "orange" },
+    { value: 0.5, label: "Khó nhất",     description: "+0.5 vào hệ số độ khó", color: "red" },
   ];
 
   return (
@@ -355,6 +388,37 @@ function ServiceForm({
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 mb-2">
+          Độ khó của dịch vụ
+        </label>
+        <p className="text-xs text-slate-400 mb-3 -mt-1">
+          Hệ số này đồng bộ với hệ số độ khó bệnh nhân trong lương bác sĩ
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {difficultyLevels.map((level) => {
+            const colorMap: Record<string, { active: string; inactive: string }> = {
+              slate:   { active: "border-slate-400 bg-slate-50 text-slate-700 ring-1 ring-slate-400",  inactive: "border-slate-200 bg-white text-slate-500 hover:border-slate-300" },
+              amber:   { active: "border-amber-400 bg-amber-50 text-amber-700 ring-1 ring-amber-400",  inactive: "border-amber-200 bg-white text-amber-600 hover:border-amber-300" },
+              orange:  { active: "border-orange-400 bg-orange-50 text-orange-700 ring-1 ring-orange-400", inactive: "border-orange-200 bg-white text-orange-600 hover:border-orange-300" },
+              red:     { active: "border-red-400 bg-red-50 text-red-700 ring-1 ring-red-400",           inactive: "border-red-200 bg-white text-red-600 hover:border-red-300" },
+            };
+            const isSelected = form.difficultyLevel === level.value;
+            const colors = colorMap[level.color];
+            return (
+              <button
+                key={level.value}
+                type="button"
+                onClick={() => setForm({ ...form, difficultyLevel: level.value })}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${isSelected ? colors.active : colors.inactive}`}
+              >
+                <p className="font-semibold text-sm">{level.label}</p>
+                <p className="text-xs mt-0.5 opacity-75">{level.description}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
       <label className="flex items-center justify-between p-4 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-all">

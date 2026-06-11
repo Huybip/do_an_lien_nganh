@@ -3,10 +3,10 @@ import DoctorSidebar from "../../components/layout/DoctorSidebar";
 import Table from "../../components/ui/Table";
 import Modal from "../../components/ui/Modal";
 import AppointmentCalendar from "../../components/ui/AppointmentCalendar";
-import { appointmentApi, recordApi, paymentApi, dayOffApi, unwrap } from "../../services/api";
+import { appointmentApi, recordApi, paymentApi, dayOffApi, serviceApi, unwrap } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../hooks/useToast";
-import type { Appointment } from "../../types";
+import type { Appointment, Service } from "../../types";
 
 const statusColor: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700",
@@ -92,8 +92,9 @@ export default function DoctorAppointments() {
     fee: 0,
     notes: "",
     type: "examination",
-    difficulty: 0.0
+    difficulty: 0,
   });
+  const [examServiceDetails, setExamServiceDetails] = useState<Array<{ name: string; difficultyLevel: number }>>([]);
 
   const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
   const todayCount = (appointments || []).filter(
@@ -171,9 +172,44 @@ export default function DoctorAppointments() {
   };
 
 
-  const handleOpenExam = (apt: Appointment) => {
+  const handleOpenExam = async (apt: Appointment) => {
     setSelected(apt);
+
+    // Collect all service IDs from appointment
+    // services[] is populated from DB as ObjectId strings when not .populate()'d
+    const serviceIds: string[] = [];
+    if (apt.services && apt.services.length > 0) {
+      // Already populated: [{ _id, name, difficultyLevel }]
+      if (typeof apt.services[0] === "object") {
+        (apt.services as any[]).forEach(s => { if (s?._id) serviceIds.push(s._id); });
+      } else {
+        // String ObjectId array
+        (apt.services as any[]).forEach(id => { if (id) serviceIds.push(id); });
+      }
+    } else {
+      const single = typeof apt.service === "object" ? (apt.service as any)?._id : apt.service;
+      if (single) serviceIds.push(single);
+    }
+
+    // Fetch all services in parallel
+    let serviceDetails: Array<{ name: string; difficultyLevel: number }> = [];
+    let suggestedDifficulty = 0;
+
+    try {
+      if (serviceIds.length > 0) {
+        const results = await Promise.all(serviceIds.map(id => serviceApi.getById(id)));
+        serviceDetails = results.map(res => {
+          const svc = unwrap(res) as Service;
+          return { name: svc?.name || "—", difficultyLevel: svc?.difficultyLevel ?? 0 };
+        });
+        suggestedDifficulty = Math.max(0, ...serviceDetails.map(d => d.difficultyLevel));
+      }
+    } catch {
+      // Fallback if service fetch fails
+    }
+
     const serviceFee = typeof apt.service === "object" ? (apt.service as any)?.price : apt.fee;
+    setExamServiceDetails(serviceDetails);
     setExamForm({
       diagnosis: "",
       treatment: "",
@@ -181,7 +217,7 @@ export default function DoctorAppointments() {
       fee: apt.fee || serviceFee || 0,
       notes: "",
       type: "examination",
-      difficulty: 0.0
+      difficulty: suggestedDifficulty,
     });
     setShowExamModal(true);
   };
@@ -207,7 +243,7 @@ export default function DoctorAppointments() {
       await appointmentApi.complete(selected.id, {
         notes: examForm.notes || examForm.diagnosis,
         fee: Number(examForm.fee),
-        difficulty: Number(examForm.difficulty)
+        difficulty: Number(examForm.difficulty || 0)
       });
       
       // Close exam modal
@@ -755,10 +791,36 @@ export default function DoctorAppointments() {
                 <p className="text-sm font-bold text-slate-800">Thông tin ca khám</p>
                 <div className="grid grid-cols-2 gap-4 mt-2 text-xs text-slate-500 font-medium">
                   <p>Bệnh nhân: <span className="font-bold text-slate-700">{selected.patientName}</span></p>
-                  <p>Dịch vụ: <span className="font-bold text-slate-700">{selected.serviceName}</span></p>
                   <p>Ngày khám: <span className="font-bold text-slate-700">{selected.date}</span></p>
                   <p>Thời gian: <span className="font-bold text-slate-700">{selected.time}</span></p>
                 </div>
+                {examServiceDetails.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-violet-200">
+                    <p className="text-xs font-bold text-slate-500 mb-2">Dịch vụ &amp; Hệ số khó:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {examServiceDetails.map((svc, idx) => (
+                        <span
+                          key={idx}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                            svc.difficultyLevel >= 0.3
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : svc.difficultyLevel === 0.2
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          }`}
+                        >
+                          {svc.name}
+                          <span className="font-mono">({svc.difficultyLevel})</span>
+                        </span>
+                      ))}
+                    </div>
+                    {examServiceDetails.some(s => s.difficultyLevel > 0) && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        Hệ số áp dụng: <span className="font-bold text-violet-700">cao nhất = {examForm.difficulty}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -811,17 +873,23 @@ export default function DoctorAppointments() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mức độ khó của ca *</label>
-                  <select
-                    value={examForm.difficulty}
-                    onChange={(e) => setExamForm({ ...examForm, difficulty: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 border-2 border-slate-200 focus:border-violet-500 focus:outline-none rounded-xl text-sm font-semibold"
-                  >
-                    <option value={0.0}>Thông thường (Hệ số: 0.0)</option>
-                    <option value={0.2}>Trung bình (Hệ số: 0.2)</option>
-                    <option value={0.3}>Phức tạp (Hệ số: 0.3)</option>
-                    <option value={0.5}>Khó nhất (Hệ số: 0.5)</option>
-                  </select>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Hệ số nhân ca khó</label>
+                  <div className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 ${
+                    examForm.difficulty >= 0.3
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                      : examForm.difficulty === 0.2
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : examForm.difficulty > 0
+                      ? "bg-orange-50 text-orange-700 border-orange-200"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  }`}>
+                    {examForm.difficulty === 0 ?   "Thông thường × 1.0" :
+                     examForm.difficulty === 0.2 ? "Trung bình  × 1.2" :
+                     examForm.difficulty === 0.3 ? "Phức tạp   × 1.3" :
+                     examForm.difficulty === 0.5 ? "Khó nhất   × 1.5" :
+                     "—"}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Lấy hệ số cao nhất trong các dịch vụ</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Chi phí khám (VNĐ)</label>

@@ -30,6 +30,7 @@ export interface Appointment {
   service: Service | string;
   serviceName?: string;
   serviceNames?: string[];
+  services?: Service[];
   date: string;
   time: string;
   status:
@@ -88,6 +89,7 @@ export interface Service {
   price: number;
   category: string;
   active?: boolean;
+  difficultyLevel?: number; // hệ số độ khó: 0.0 | 0.2 | 0.3 | 0.5
 }
 
 export interface DentalScore {
