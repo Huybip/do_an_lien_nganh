@@ -35,7 +35,7 @@ const getAll = async (req, res) => {
       Appointment.find(filter)
         .populate("patient", "name email phone")
         .populate("doctor", "name email specialization")
-        .populate("service", "name price duration category")
+        .populate("service", "name price duration category difficultyLevel")
         .sort(sort)
         .skip(skip)
         .limit(limit),
@@ -58,7 +58,7 @@ const getMine = async (req, res) => {
     const [appointments, total] = await Promise.all([
       Appointment.find(filter)
         .populate("doctor", "name email specialization")
-        .populate("service", "name price duration")
+        .populate("service", "name price duration difficultyLevel")
         .sort({ date: -1, time: -1 })
         .skip(skip)
         .limit(limit),
@@ -77,7 +77,7 @@ const getById = async (req, res) => {
     const appointment = await Appointment.findById(req.params.id)
       .populate("patient", "name email phone")
       .populate("doctor", "name email specialization")
-      .populate("service", "name price duration");
+      .populate("service", "name price duration difficultyLevel");
 
     if (!appointment) return sendError(res, 404, "Appointment not found.");
 
@@ -217,7 +217,7 @@ const create = async (req, res) => {
 
     await appointment.populate([
       { path: "doctor", select: "name email specialization" },
-      { path: "service", select: "name price duration" },
+      { path: "service", select: "name price duration difficultyLevel" },
     ]);
 
     return res.status(201).json({
@@ -574,7 +574,7 @@ const complete = async (req, res) => {
     await appointment.populate([
       { path: "patient", select: "name email phone" },
       { path: "doctor", select: "name email" },
-      { path: "service", select: "name price" },
+      { path: "service", select: "name price difficultyLevel" },
     ]);
 
     return sendSuccess(res, 200, "Appointment completed", {

@@ -10,6 +10,7 @@ const helmet = require("helmet");
 const path = require("path");
 const fs = require("fs");
 const { setupVideoCallSocket } = require("./src/socket/videoCallSocket");
+const { setupSalarySocket } = require("./src/socket/salarySocket");
 
 const connectDB = require("./src/config/db");
 const corsOptions = require("./src/config/cors");
@@ -40,6 +41,9 @@ const PORT = process.env.PORT || 5000;
 
 // Setup WebRTC signaling
 setupVideoCallSocket(io);
+
+// Setup Salary real-time notifications
+setupSalarySocket(io);
 
 // ─── Connect DB ──────────────────────────────────────────────────────────────
 connectDB();

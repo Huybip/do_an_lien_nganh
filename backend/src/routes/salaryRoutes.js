@@ -3,7 +3,9 @@ const router = express.Router();
 const {
   calculateSalary,
   getSalary,
+  getSalaryDetail,
   listSalaries,
+  getMySalaries,
   approveSalary,
   markAsPaid,
   deleteSalary,
@@ -22,9 +24,17 @@ router.post("/calculate", authorize("admin"), calculateSalary);
 // @desc    List all salaries (Admin only)
 router.get("/", authorize("admin"), listSalaries);
 
+// @route   GET /api/salaries/me
+// @desc    Get own salary history (Doctor only)
+router.get("/me", getMySalaries);
+
 // @route   GET /api/salaries/summary/:month/:year
 // @desc    Get salary summary for a month/year (Admin only)
 router.get("/summary/:month/:year", authorize("admin"), getSalarySummary);
+
+// @route   GET /api/salaries/:id/detail
+// @desc    Get detailed salary with all shift/appointment info for a salary record (Admin only)
+router.get("/:id/detail", authorize("admin"), getSalaryDetail);
 
 // @route   GET /api/salaries/:doctorId/:month/:year
 // @desc    Get salary for a specific doctor/month/year

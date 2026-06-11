@@ -19,6 +19,12 @@ const serviceSchema = new mongoose.Schema(
     currency: { type: String, default: 'VND' },
     requirements: [{ type: String }],
     aftercare: { type: String, trim: true },
+    difficultyLevel: {
+      type: Number,
+      default: 0.0,
+      enum: [0.0, 0.2, 0.3, 0.5],
+      comment: 'Hệ số độ khó của dịch vụ – đồng bộ với appointment.difficulty',
+    },
     active: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
   },

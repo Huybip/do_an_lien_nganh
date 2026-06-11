@@ -4,6 +4,7 @@ const Shift = require("../models/Shift");
 const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 const User = require("../models/User");
+const { notifyDoctorSalaryUpdated } = require("../socket/salarySocket");
 
 // @desc    Calculate salary for a doctor in a specific month/year
 // @route   POST /api/salaries/calculate
@@ -157,6 +158,9 @@ exports.calculateSalary = asyncHandler(async (req, res) => {
 
   await salary.save();
 
+  // Emit real-time notification to the doctor
+  notifyDoctorSalaryUpdated(doctorId, salary);
+
   res.status(200).json({
     success: true,
     message: "Salary calculated successfully",
@@ -188,6 +192,145 @@ exports.getSalary = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: salary,
+  });
+});
+
+// @desc    Get detailed salary record with all shift/appointment info (for modal drill-down)
+// @route   GET /api/salaries/:id/detail
+// @access  Private/Admin
+exports.getSalaryDetail = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const salary = await Salary.findById(id)
+    .populate("doctor", "name email specialization")
+    .populate("approvedBy", "name email");
+
+  if (!salary) {
+    return res.status(404).json({
+      success: false,
+      message: "Salary record not found",
+    });
+  }
+
+  // Re-calculate fresh from real shifts + appointments for this doctor/month/year
+  const startDate = `${salary.year}-${String(salary.month).padStart(2, "0")}-01`;
+  const endDate = new Date(salary.year, salary.month, 0).toISOString().split("T")[0];
+
+  const shifts = await Shift.find({
+    doctorId: salary.doctorId,
+    date: { $gte: startDate, $lte: endDate },
+    status: "active",
+  }).populate("doctor", "name email");
+
+  // Build enriched shift details
+  const enrichedShiftDetails = [];
+  let totalWorkingHours = 0;
+  let totalDifficulty = 0;
+
+  for (const shift of shifts) {
+    const [startH, startM] = shift.startTime.split(":").map(Number);
+    const [endH, endM] = shift.endTime.split(":").map(Number);
+    const workingHours = endH + endM / 60 - (startH + startM / 60);
+
+    const isWeekend = isWeekendDate(shift.date);
+    const shiftMultiplier = getShiftMultiplier(shift.shiftType, isWeekend);
+
+    // Get completed/checked-in appointments for this shift
+    const appointments = await Appointment.find({
+      doctor: shift.doctor._id,
+      date: shift.date,
+      shiftType: shift.shiftType,
+      status: { $in: ["completed", "examining", "checked-in"] },
+    }).populate("patient", "name email");
+
+    let shiftTotalDifficulty = 0;
+    const appointmentList = appointments.map((apt) => {
+      const difficulty = getDifficultyScore(apt);
+      shiftTotalDifficulty += difficulty;
+      return {
+        _id: apt._id,
+        patientName: apt.patientName || apt.patient?.name || "N/A",
+        serviceName: apt.serviceName || apt.serviceNames?.join(", ") || "Khám",
+        date: apt.date,
+        shiftType: apt.shiftType,
+        difficulty,
+        difficultyLabel: getDifficultyLabel(difficulty),
+        status: apt.status,
+        fee: apt.fee || 0,
+      };
+    });
+
+    const equivalentHours = workingHours * (shiftMultiplier + shiftTotalDifficulty);
+    const rate = salary.basicHourlyRate || 210000;
+    const coefficient = salary.degreeCoefficient || 1.2;
+    const shiftAmount = Math.round(equivalentHours * coefficient * rate);
+
+    enrichedShiftDetails.push({
+      _id: shift._id,
+      date: shift.date,
+      shiftType: shift.shiftType,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      workingHours: parseFloat(workingHours.toFixed(2)),
+      shiftMultiplier: parseFloat(shiftMultiplier.toFixed(2)),
+      isWeekend,
+      dayOfWeek: getDayOfWeekLabel(shift.date),
+      patientsCount: appointments.length,
+      totalDifficulty: parseFloat(shiftTotalDifficulty.toFixed(2)),
+      equivalentHours: parseFloat(equivalentHours.toFixed(2)),
+      shiftAmount,
+      appointments: appointmentList,
+    });
+
+    totalWorkingHours += workingHours;
+    totalDifficulty += shiftTotalDifficulty;
+  }
+
+  // Count difficult cases
+  const hardCases = enrichedShiftDetails.filter(s => s.totalDifficulty > 0);
+  const totalHardPatients = enrichedShiftDetails.reduce((sum, s) => {
+    return sum + s.appointments.filter(a => a.difficulty > 0).length;
+  }, 0);
+
+  // Revenue stats
+  const totalRevenue = enrichedShiftDetails.reduce((sum, s) => {
+    return sum + s.appointments.reduce((aSum, a) => aSum + a.fee, 0);
+  }, 0);
+
+  // Monthly breakdown
+  const dayGroups = {};
+  enrichedShiftDetails.forEach(s => {
+    if (!dayGroups[s.date]) {
+      dayGroups[s.date] = {
+        date: s.date,
+        dayOfWeek: s.dayOfWeek,
+        shifts: [],
+        totalHours: 0,
+        totalDifficulty: 0,
+        totalAmount: 0,
+      };
+    }
+    dayGroups[s.date].shifts.push(s);
+    dayGroups[s.date].totalHours += s.workingHours;
+    dayGroups[s.date].totalDifficulty += s.totalDifficulty;
+    dayGroups[s.date].totalAmount += s.shiftAmount;
+  });
+  const dailyBreakdown = Object.values(dayGroups).sort(function(a, b) {
+    return a.date.localeCompare(b.date);
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      salaryRecord: salary,
+      enrichedShiftDetails,
+      totalWorkingHours: parseFloat(totalWorkingHours.toFixed(2)),
+      totalDifficulty: parseFloat(totalDifficulty.toFixed(2)),
+      hardCasesCount: hardCases.length,
+      hardPatientsCount: totalHardPatients,
+      totalRevenue,
+      dailyBreakdown,
+    },
   });
 });
 
@@ -228,6 +371,36 @@ exports.listSalaries = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get own salary history for the logged-in doctor
+// @route   GET /api/salaries/me
+// @access  Private/Doctor
+exports.getMySalaries = asyncHandler(async (req, res) => {
+  // Find the Doctor record linked to this user
+  const doctor = await Doctor.findOne({ user: req.user._id });
+  if (!doctor) {
+    return res.status(404).json({
+      success: false,
+      message: "Doctor record not found for this user",
+    });
+  }
+
+  const { year, month, limit = 50 } = req.query;
+
+  const filter = { doctorId: doctor._id };
+  if (year) filter.year = parseInt(year);
+  if (month) filter.month = parseInt(month);
+
+  const salaries = await Salary.find(filter)
+    .populate("approvedBy", "name email")
+    .sort({ year: -1, month: -1, createdAt: -1 })
+    .limit(parseInt(limit));
+
+  res.status(200).json({
+    success: true,
+    data: salaries,
+  });
+});
+
 // @desc    Approve salary
 // @route   PUT /api/salaries/:id/approve
 // @access  Private/Admin
@@ -256,6 +429,9 @@ exports.approveSalary = asyncHandler(async (req, res) => {
     });
   }
 
+  // Emit real-time notification to the doctor
+  notifyDoctorSalaryUpdated(salary.doctorId, salary);
+
   res.status(200).json({
     success: true,
     message: "Salary approved successfully",
@@ -269,23 +445,22 @@ exports.approveSalary = asyncHandler(async (req, res) => {
 exports.markAsPaid = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const salary = await Salary.findByIdAndUpdate(
-    id,
-    {
-      status: "paid",
-      paidDate: new Date(),
-    },
-    { new: true, runValidators: true },
-  )
-    .populate("doctor", "name email")
-    .populate("approvedBy", "name email");
-
+  const salary = await Salary.findById(id);
   if (!salary) {
     return res.status(404).json({
       success: false,
       message: "Salary record not found",
     });
   }
+
+  salary.status = "paid";
+  salary.paidDate = new Date();
+  await salary.save();
+  await salary.populate("doctor", "name email");
+  await salary.populate("approvedBy", "name email");
+
+  // Emit real-time notification to the doctor
+  notifyDoctorSalaryUpdated(salary.doctorId, salary);
 
   res.status(200).json({
     success: true,
@@ -383,4 +558,20 @@ function getDifficultyScore(appointment) {
     return 0.3; // Complex case fallback
   }
   return 0.0; // Simple case fallback
+}
+
+// Get difficulty label for display
+function getDifficultyLabel(score) {
+  if (score === 0.5) return "Khó nhất";
+  if (score === 0.3) return "Phức tạp";
+  if (score === 0.2) return "Trung bình";
+  return "Thông thường";
+}
+
+// Get day of week label in Vietnamese
+function getDayOfWeekLabel(dateString) {
+  const date = new Date(dateString + "T00:00:00Z");
+  const day = date.getUTCDay();
+  const labels = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+  return labels[day];
 }
