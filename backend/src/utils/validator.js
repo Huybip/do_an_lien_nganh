@@ -126,6 +126,21 @@ const createServiceSchema = {
   }),
 };
 
+const updateServiceSchema = {
+  body: Joi.object({
+    name:         Joi.string().min(2).max(200),
+    description:  Joi.string().max(1000).allow('', null),
+    category:     Joi.string().valid('Preventive','Restorative','Cosmetic','Emergency','General','Orthodontics','Surgery'),
+    duration:     Joi.number().integer().min(5).max(480),
+    price:        Joi.number().min(0),
+    currency:     Joi.string().max(10),
+    requirements: Joi.array().items(Joi.string().max(200)).allow(null),
+    aftercare:    Joi.string().max(1000).allow('', null),
+    active:       Joi.boolean(),
+    sortOrder:    Joi.number().integer(),
+  }),
+};
+
 // ─── Dental Score ─────────────────────────────────────────────────────────────
 const updateScoreSchema = {
   body: Joi.object({
@@ -196,6 +211,7 @@ module.exports = {
   updateAppointmentSchema,
   createRecordSchema,
   createServiceSchema,
+  updateServiceSchema,
   updateScoreSchema,
   chatMessageSchema,
   createUserSchema,
