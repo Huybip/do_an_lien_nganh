@@ -41,7 +41,7 @@ export default function DoctorChat() {
 
   useEffect(() => {
     checkTodayAppointments();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (!isChatbot) return;

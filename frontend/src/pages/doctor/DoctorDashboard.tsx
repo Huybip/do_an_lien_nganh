@@ -49,7 +49,7 @@ export default function DoctorDashboard() {
       }
       setLoading(false);
     });
-  }, [toast]);
+  }, []);
 
   const greeting = () => {
     const hour = new Date().getHours();

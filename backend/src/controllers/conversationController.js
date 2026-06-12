@@ -53,7 +53,7 @@ const getConversations = async (req, res) => {
     // Format response to show other participant info
     const formatted = conversations.map((conv) => {
       const otherParticipant = conv.participants.find(
-        (p) => p._id.toString() !== userId.toString(),
+        (p) => p && p._id && p._id.toString() !== userId.toString(),
       );
       return {
         id: conv._id,
@@ -99,7 +99,7 @@ const getConversation = async (req, res) => {
     // Get paginated messages
     const messages = conversation.messages.slice(-limit).reverse();
     const otherParticipant = conversation.participants.find(
-      (p) => p._id.toString() !== userId.toString(),
+      (p) => p && p._id && p._id.toString() !== userId.toString(),
     );
 
     // Normalize media URLs before sending
@@ -217,7 +217,7 @@ const findOrCreateConversation = async (req, res) => {
     }
 
     const otherParticipant = conversation.participants.find(
-      (p) => p._id.toString() !== userId.toString(),
+      (p) => p && p._id && p._id.toString() !== userId.toString(),
     );
 
     return sendSuccess(res, 200, "Conversation", {

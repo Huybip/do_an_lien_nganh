@@ -719,7 +719,7 @@ export default function DoctorAppointments() {
                     style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)" }}
                     disabled={actionLoading}
                   >
-                    📋 Khám xong &amp; Lập hồ sơ
+                    📋 Khám xong & Lập hồ sơ
                   </button>
                 )}
               </div>
@@ -782,7 +782,7 @@ export default function DoctorAppointments() {
         <Modal
           open={showExamModal}
           onClose={() => setShowExamModal(false)}
-          title="🩺 Khám bệnh &amp; Cập nhật hồ sơ bệnh án"
+          title="🩺 Khám bệnh & Cập nhật hồ sơ bệnh án"
           size="lg"
         >
           {selected && (
@@ -796,7 +796,7 @@ export default function DoctorAppointments() {
                 </div>
                 {examServiceDetails.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-violet-200">
-                    <p className="text-xs font-bold text-slate-500 mb-2">Dịch vụ &amp; Hệ số khó:</p>
+                    <p className="text-xs font-bold text-slate-500 mb-2">Dịch vụ & Hệ số khó:</p>
                     <div className="flex flex-wrap gap-2">
                       {examServiceDetails.map((svc, idx) => (
                         <span
@@ -919,7 +919,7 @@ export default function DoctorAppointments() {
                   disabled={actionLoading}
                   className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:shadow-lg text-white font-bold rounded-xl transition disabled:opacity-50 text-sm"
                 >
-                  {actionLoading ? "Đang xử lý..." : "✓ Hoàn thành khám &amp; Tạo hóa đơn"}
+                  {actionLoading ? "Đang xử lý..." : "✓ Hoàn thành khám"}
                 </button>
                 <button
                   type="button"

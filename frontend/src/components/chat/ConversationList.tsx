@@ -192,15 +192,15 @@ export default function ConversationList({
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
                     style={{ background: "linear-gradient(135deg, #0ea5e9, #14b8a6)", boxShadow: "0 2px 8px rgba(14,165,233,0.3)" }}
                   >
-                    {conv.otherUser.avatar ? (
-                      <img src={conv.otherUser.avatar} alt={conv.otherUser.name} className="w-full h-full rounded-full object-cover" />
+                    {conv.otherUser?.avatar ? (
+                      <img src={conv.otherUser.avatar} alt={conv.otherUser.name || "User"} className="w-full h-full rounded-full object-cover" />
                     ) : (
-                      conv.otherUser.name?.charAt(0).toUpperCase()
+                      conv.otherUser?.name?.charAt(0).toUpperCase() || "?"
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-bold text-sm text-slate-800 truncate">{conv.otherUser.name}</p>
+                      <p className="font-bold text-sm text-slate-800 truncate">{conv.otherUser?.name || "Người dùng không tồn tại"}</p>
                       {conv.lastMessage?.timestamp && (
                         <span className="text-[10px] text-slate-400 flex-shrink-0">
                           {new Date(conv.lastMessage.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

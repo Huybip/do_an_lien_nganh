@@ -75,7 +75,7 @@ export default function PatientDashboard() {
       if (s.status === "fulfilled")
         setScore(s.value.data?.data || s.value.data);
     });
-  }, [toast]);
+  }, []);
 
   const scoreValue = score?.overall ?? 78;
   const scoreColor = scoreValue >= 80 ? "#10b981" : scoreValue >= 60 ? "#f59e0b" : "#ef4444";

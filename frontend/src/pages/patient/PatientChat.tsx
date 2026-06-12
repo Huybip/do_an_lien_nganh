@@ -33,7 +33,7 @@ export default function PatientChat() {
 
   useEffect(() => {
     checkTodayAppointments();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (!isChatbot) return;
