@@ -3,7 +3,7 @@ import DoctorSidebar from "../../components/layout/DoctorSidebar";
 import { salaryApi, doctorApi, unwrap } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { useToastContext } from "../../context/ToastContext";
-import { salarySocketService } from "../../services/salarySocket"; // Socket service listener for salary updates
+import { salarySocketService } from "../../services/salarySocket"; 
 import { Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
