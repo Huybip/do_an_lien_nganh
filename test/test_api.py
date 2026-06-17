@@ -2432,6 +2432,12 @@ def export_to_excel():
         wb.save(excel_filename)
         print(f"[OK] Created beautiful role-based 4-tab Excel report successfully: '{os.path.abspath(excel_filename)}'")
         print(f"     Sheets: Chung | Admin | Bac si | Benh nhan")
+        # Tự động mở file Excel sau khi tạo xong trên Windows
+        try:
+            os.startfile(excel_filename)
+            print(f"[+] Automatically opened Excel report: '{excel_filename}'")
+        except Exception as open_err:
+            print(f"[!] Could not automatically open Excel report: {open_err}")
     except Exception as e:
         print(f"[ERROR] Failed to save Excel workbook: {e}")
 

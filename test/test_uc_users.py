@@ -546,6 +546,12 @@ def export_excel():
     try:
         wb.save(EXCEL_FILENAME)
         print(f"[OK] Đã xuất báo cáo Excel thành công: '{os.path.abspath(EXCEL_FILENAME)}'")
+        # Tự động mở file Excel sau khi tạo xong trên Windows
+        try:
+            os.startfile(EXCEL_FILENAME)
+            print(f"[+] Tự động mở báo cáo Excel: '{EXCEL_FILENAME}'")
+        except Exception as open_err:
+            print(f"[!] Không thể tự động mở báo cáo Excel: {open_err}")
     except Exception as e:
         print(f"[ERROR] Không thể lưu file Excel: {e}")
 
