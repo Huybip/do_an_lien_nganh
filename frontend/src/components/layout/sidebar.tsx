@@ -20,29 +20,43 @@ interface NavItem {
 }
 
 const adminNav: NavItem[] = [
-  { label: "Dashboard", path: "/admin", icon: "🏠" },
-  { label: "Users", path: "/admin/users", icon: "👥" },
-  { label: "Doctors", path: "/admin/doctors", icon: "👨‍⚕️" },
-  { label: "Services", path: "/admin/services", icon: "🦷" },
+  { label: "Tổng quan", path: "/admin", icon: "🏠" },
+  { label: "Tiếp đón", path: "/admin/checkin", icon: "🛎️" },
+  { label: "Lịch hẹn", path: "/admin/appointments", icon: "📅" },
+  { label: "Bệnh án", path: "/admin/records", icon: "📋" },
+  { label: "Bác sĩ", path: "/admin/doctors", icon: "👨‍⚕️" },
+  { label: "Người dùng", path: "/admin/users", icon: "👥" },
+  { label: "Dịch vụ", path: "/admin/services", icon: "🦷" },
+  { label: "Ca trực", path: "/admin/shifts", icon: "⏰" },
+  { label: "Thanh toán", path: "/admin/payments", icon: "💳" },
+  { label: "Tính lương", path: "/admin/salary", icon: "💰" },
+  { label: "Báo cáo", path: "/admin/reports", icon: "📊" },
+  { label: "Cấu hình", path: "/admin/settings", icon: "⚙️" },
 ];
+
 const doctorNav: NavItem[] = [
-  { label: "Dashboard", path: "/doctor", icon: "🏠" },
-  { label: "Patients", path: "/doctor/patients", icon: "🧑‍🤝‍🧑" },
-  { label: "Appointments", path: "/doctor/appointments", icon: "📅" },
-  { label: "Records", path: "/doctor/records", icon: "📋" },
-  { label: "Images", path: "/doctor/images", icon: "🖼️" },
-  { label: "Messages", path: "/doctor/chat", icon: "💬" },
+  { label: "Tổng quan", path: "/doctor", icon: "🏠" },
+  { label: "Lịch hẹn", path: "/doctor/appointments", icon: "📅" },
+  { label: "Bệnh nhân", path: "/doctor/patients", icon: "🧑‍🤝‍🧑" },
+  { label: "Hồ sơ y tế", path: "/doctor/records", icon: "📋" },
+  { label: "Hình ảnh", path: "/doctor/images", icon: "🖼️" },
+  { label: "Tin nhắn", path: "/doctor/chat", icon: "💬" },
   { label: "Video Call", path: "/video-call", icon: "📹" },
+  { label: "Ca trực", path: "/doctor/shifts", icon: "⏰" },
+  { label: "Bảng lương", path: "/doctor/salary", icon: "💰" },
+  { label: "Hồ sơ cá nhân", path: "/doctor/profile", icon: "👤" },
 ];
+
 const patientNav: NavItem[] = [
-  { label: "Dashboard", path: "/patient", icon: "🏠" },
-  { label: "My Profile", path: "/patient/profile", icon: "👤" },
-  { label: "Appointments", path: "/patient/appointments", icon: "📅" },
-  { label: "Records", path: "/patient/records", icon: "📋" },
-  { label: "Images", path: "/patient/images", icon: "🖼️" },
-  { label: "Dental Score", path: "/patient/score", icon: "⭐" },
-  { label: "Messages", path: "/patient/chat", icon: "💬" },
+  { label: "Tổng quan", path: "/patient", icon: "🏠" },
+  { label: "Lịch hẹn", path: "/patient/appointments", icon: "📅" },
+  { label: "Hồ sơ bệnh án", path: "/patient/records", icon: "📋" },
+  { label: "Sức khỏe răng", path: "/patient/dental-score", icon: "⭐" },
+  { label: "Hình ảnh", path: "/patient/images", icon: "🖼️" },
+  { label: "Thanh toán", path: "/patient/payments", icon: "💳" },
+  { label: "Tin nhắn", path: "/patient/chat", icon: "💬" },
   { label: "Video Call", path: "/video-call", icon: "📹" },
+  { label: "Hồ sơ cá nhân", path: "/patient/profile", icon: "👤" },
 ];
 
 interface Props {
@@ -58,15 +72,15 @@ export default function Sidebar({ collapsed, onCollapse }: Props) {
     role === "admin" ? adminNav : role === "doctor" ? doctorNav : patientNav;
   const roleLabel =
     role === "admin"
-      ? "Administrator"
+      ? "Quản trị viên"
       : role === "doctor"
-        ? "Doctor"
-        : "Patient";
+        ? "Bác sĩ"
+        : "Bệnh nhân";
   const roleColor =
     role === "admin"
-      ? "badge-red"
+      ? "badge-blue"
       : role === "doctor"
-        ? "badge-blue"
+        ? "badge-violet"
         : "badge-green";
 
   const handleLogout = () => {

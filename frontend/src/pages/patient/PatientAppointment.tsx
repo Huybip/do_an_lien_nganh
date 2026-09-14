@@ -131,7 +131,7 @@ export default function PatientAppointment() {
   ];
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf9 0%, #f8fafc 50%, #ecfdf5 100%)" }}>
       <PatientSidebar />
       <div className="flex-1 lg:ml-0 min-w-0 overflow-y-auto">
         <div className="glass-header sticky top-0 z-10 px-6 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-3">

@@ -295,7 +295,7 @@ export default function PatientChat() {
   };
 
   return (
-    <div className="flex">
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf9 0%, #f8fafc 50%, #ecfdf5 100%)" }}>
       <PatientSidebar />
       <div className="flex-1 min-w-0">
         {/* Header */}

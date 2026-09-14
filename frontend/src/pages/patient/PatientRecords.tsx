@@ -26,7 +26,7 @@ export default function PatientRecords() {
   const filteredRecords = (records || []).filter(r => filter === "all" || (r.status || "completed") === filter);
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf9 0%, #f8fafc 50%, #ecfdf5 100%)" }}>
       <PatientSidebar />
       <div className="flex-1 lg:ml-0 min-w-0">
         {/* Header */}

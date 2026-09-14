@@ -111,7 +111,7 @@ export default function DoctorDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #faf5ff 0%, #f5f3ff 50%, #ede9fe 100%)" }}>
       <DoctorSidebar />
       <div className="flex-1 lg:ml-0 min-w-0">
         {/* Header */}

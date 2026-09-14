@@ -498,7 +498,7 @@ Báo cáo được tạo tự động bởi hệ thống
         className="flex h-screen"
         style={{
           background:
-            "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)",
+            "linear-gradient(145deg, #f0f9ff 0%, #f8fafc 50%, #e0f2fe 100%)",
         }}
       >
         <AdminSidebar />
@@ -548,7 +548,7 @@ Báo cáo được tạo tự động bởi hệ thống
       className="flex h-screen"
       style={{
         background:
-          "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)",
+          "linear-gradient(145deg, #f0f9ff 0%, #f8fafc 50%, #e0f2fe 100%)",
       }}
     >
       <AdminSidebar />

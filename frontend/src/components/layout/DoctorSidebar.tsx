@@ -33,15 +33,6 @@ export default function DoctorSidebar() {
     {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-      ),
-      label: "Bệnh nhân",
-      path: "/doctor/patients",
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
         </svg>
       ),
@@ -51,20 +42,11 @@ export default function DoctorSidebar() {
     {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
       ),
-      label: "Ca trực",
-      path: "/doctor/shifts",
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-      ),
-      label: "Bảng lương",
-      path: "/doctor/salary",
+      label: "Bệnh nhân",
+      path: "/doctor/patients",
     },
     {
       icon: (
@@ -102,7 +84,24 @@ export default function DoctorSidebar() {
       label: "Video Call",
       path: "/video-call",
     },
-
+    {
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      ),
+      label: "Ca trực",
+      path: "/doctor/shifts",
+    },
+    {
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+      ),
+      label: "Bảng lương",
+      path: "/doctor/salary",
+    },
     {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -124,25 +123,25 @@ export default function DoctorSidebar() {
   const NavContent = () => (
     <>
       {/* Logo */}
-      <div className="p-5 border-b border-white/10">
+      <div className="p-4 border-b border-white/10 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg"
-              style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)", boxShadow: "0 4px 12px rgba(124,58,237,0.35)" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 14px rgba(124,58,237,0.4)" }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
               </svg>
             </div>
             {isOpen && (
-              <div>
-                <span className="font-bold text-white text-base block leading-tight">Doctor</span>
-                <span className="text-[10px] text-violet-200/60 font-medium">Bác sĩ chuyên khoa</span>
+              <div className="min-w-0">
+                <span className="font-bold text-white text-base block leading-tight truncate">VinaMec</span>
+                <span className="text-[10px] text-violet-200/70 font-medium tracking-wide truncate block">Bác sĩ chuyên khoa</span>
               </div>
             )}
           </div>
           {isOpen && (
             <button onClick={() => setIsOpen(false)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-violet-200/60 hover:bg-white/10 hover:text-white transition text-lg font-light">
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-violet-200/60 hover:bg-white/10 hover:text-white transition text-lg font-light flex-shrink-0">
               ‹
             </button>
           )}
@@ -150,30 +149,30 @@ export default function DoctorSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 min-h-0 overflow-y-auto py-2.5 px-3 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" }}>
         {isOpen && (
-          <p className="text-[10px] font-bold text-violet-200/40 uppercase tracking-widest mb-3 px-2">Danh mục</p>
+          <p className="text-[10px] font-bold text-violet-200/40 uppercase tracking-widest mb-2 px-2">Danh mục chuyên môn</p>
         )}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {menuItems.map((item) => (
             <button
               key={item.path}
               onClick={() => { navigate(item.path); setMobileOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group relative ${
                 isActive(item.path)
-                  ? "bg-white/20 text-white"
+                  ? "bg-gradient-to-r from-violet-500/30 to-indigo-500/20 text-white font-semibold shadow-sm border border-violet-400/30"
                   : "text-violet-100/70 hover:bg-white/10 hover:text-white"
               }`}
               title={!isOpen ? item.label : undefined}
             >
               {isActive(item.path) && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-full" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-gradient-to-b from-violet-300 to-indigo-400 rounded-r-full shadow-sm" />
               )}
-              <span className={`flex-shrink-0 ${isActive(item.path) ? "text-white" : "text-violet-200/60 group-hover:text-violet-200"}`}>
+              <span className={`flex-shrink-0 ${isActive(item.path) ? "text-violet-200" : "text-violet-300/60 group-hover:text-violet-200"}`}>
                 {item.icon}
               </span>
               {isOpen && (
-                <span className={`text-sm font-semibold ${isActive(item.path) ? "text-white" : ""}`}>{item.label}</span>
+                <span className={`text-sm truncate ${isActive(item.path) ? "text-white font-semibold" : "font-medium"}`}>{item.label}</span>
               )}
             </button>
           ))}
@@ -181,22 +180,22 @@ export default function DoctorSidebar() {
       </nav>
 
       {/* User + Footer */}
-      <div className="border-t border-white/10 p-3 space-y-2">
+      <div className="border-t border-white/10 p-2.5 space-y-1 flex-shrink-0 mt-auto bg-black/15">
         {isOpen && user && (
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 mb-1">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow"
-              style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)" }}>
+          <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/5 mb-1 border border-white/5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}>
               {user.name?.charAt(0)?.toUpperCase() || "D"}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white truncate">{user.name}</p>
-              <p className="text-[10px] text-violet-200/50 truncate">{user.email}</p>
+              <p className="text-[10px] text-violet-200/60 truncate">{user.email}</p>
             </div>
           </div>
         )}
         <button onClick={handleLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-300/80 hover:bg-red-500/20 hover:text-red-200 transition text-sm font-semibold ${!isOpen && "justify-center"}`}>
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-red-300/80 hover:bg-red-500/20 hover:text-red-200 transition text-xs font-semibold ${!isOpen && "justify-center"}`}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
           </svg>
           {isOpen && <span>Đăng xuất</span>}
@@ -204,10 +203,10 @@ export default function DoctorSidebar() {
       </div>
 
       {!isOpen && (
-        <div className="p-2 border-t border-white/10">
+        <div className="p-2 border-t border-white/10 flex-shrink-0">
           <button onClick={() => setIsOpen(true)}
-            className="w-full flex items-center justify-center py-2 text-violet-200/60 hover:bg-white/10 hover:text-white transition rounded-lg">
-            <span className="text-lg">›</span>
+            className="w-full flex items-center justify-center py-1.5 text-violet-200/60 hover:bg-white/10 hover:text-white transition rounded-lg">
+            <span className="text-base">›</span>
           </button>
         </div>
       )}
@@ -232,16 +231,16 @@ export default function DoctorSidebar() {
       {/* Mobile drawer */}
       <div className={`fixed top-0 left-0 z-50 h-full w-64 flex flex-col transition-transform duration-300 lg:hidden ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
-      }`} style={{ background: "linear-gradient(180deg, #4c1d95 0%, #6d28d9 100%)" }}>
+      }`} style={{ background: "linear-gradient(180deg, #1e1b4b 0%, #2e1065 45%, #4c1d95 100%)" }}>
         {NavContent()}
       </div>
 
       {/* Desktop sidebar */}
-      <div className={`hidden lg:block sticky top-0 h-screen flex-shrink-0 transition-all duration-300 ${
+      <aside className={`hidden lg:flex lg:flex-col sticky top-0 h-screen max-h-screen flex-shrink-0 select-none overflow-hidden transition-all duration-300 ${
         isOpen ? "w-60" : "w-20"
-      }`} style={{ background: "linear-gradient(180deg, #4c1d95 0%, #6d28d9 100%)" }}>
+      }`} style={{ background: "linear-gradient(180deg, #1e1b4b 0%, #2e1065 45%, #4c1d95 100%)", boxShadow: "4px 0 24px rgba(30,27,75,0.25)" }}>
         {NavContent()}
-      </div>
+      </aside>
     </>
   );
 }

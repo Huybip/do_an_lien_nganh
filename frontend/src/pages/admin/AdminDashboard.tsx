@@ -67,7 +67,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+      <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0f9ff 0%, #f8fafc 50%, #e0f2fe 100%)" }}>
         <AdminSidebar />
         <div className="flex-1 lg:ml-0 min-w-0 flex items-center justify-center">
           <div className="text-center">
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0f9ff 0%, #f8fafc 50%, #e0f2fe 100%)" }}>
       <AdminSidebar />
       <div className="flex-1 lg:ml-0 min-w-0">
         {/* Header */}

@@ -187,7 +187,11 @@ export default function VideoCallPage() {
   const isBusy = isInCall || callState.status === "calling" || callState.status === "incoming";
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{
+      background: isDoctor
+        ? "linear-gradient(145deg, #faf5ff 0%, #f5f3ff 50%, #ede9fe 100%)"
+        : "linear-gradient(145deg, #f0fdf9 0%, #f8fafc 50%, #ecfdf5 100%)",
+    }}>
       {isDoctor ? <DoctorSidebar /> : <PatientSidebar />}
       <div className="flex-1 min-w-0">
 

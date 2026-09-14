@@ -120,14 +120,14 @@ export default function PatientSidebar() {
 
   const menuItems: MenuItem[] = [
     { label: "Tổng quan", path: "/patient", icon: <DashboardIcon active={false} />, iconActive: <DashboardIcon active /> },
-    { label: "Hồ sơ", path: "/patient/profile", icon: <ProfileIcon active={false} />, iconActive: <ProfileIcon active /> },
     { label: "Lịch hẹn", path: "/patient/appointments", icon: <CalendarIcon active={false} />, iconActive: <CalendarIcon active /> },
     { label: "Hồ sơ bệnh án", path: "/patient/records", icon: <RecordsIcon active={false} />, iconActive: <RecordsIcon active /> },
-    { label: "Hình ảnh", path: "/patient/images", icon: <ImagesIcon active={false} />, iconActive: <ImagesIcon active /> },
     { label: "Sức khỏe răng", path: "/patient/dental-score", icon: <DentalIcon active={false} />, iconActive: <DentalIcon active /> },
+    { label: "Hình ảnh", path: "/patient/images", icon: <ImagesIcon active={false} />, iconActive: <ImagesIcon active /> },
     { label: "Thanh toán", path: "/patient/payments", icon: <PaymentIcon active={false} />, iconActive: <PaymentIcon active /> },
     { label: "Tin nhắn", path: "/patient/chat", icon: <ChatIcon active={false} />, iconActive: <ChatIcon active /> },
     { label: "Video Call", path: "/video-call", icon: <VideoIcon active={false} />, iconActive: <VideoIcon active /> },
+    { label: "Hồ sơ cá nhân", path: "/patient/profile", icon: <ProfileIcon active={false} />, iconActive: <ProfileIcon active /> },
   ];
 
   const handleLogout = () => {
@@ -146,23 +146,23 @@ export default function PatientSidebar() {
           w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative group font-medium
           ${!isOpen && "justify-center"}
           ${active
-            ? "bg-white/15 text-white font-semibold"
+            ? "bg-gradient-to-r from-emerald-500/25 to-teal-500/20 text-white font-semibold shadow-sm border border-emerald-400/30"
             : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
           }
         `}
       >
         {active && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-gradient-to-b from-emerald-300 to-teal-400" />
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-gradient-to-b from-emerald-300 to-teal-400 shadow-sm" />
         )}
-        <span className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200">
+        <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${active ? "text-emerald-200" : "text-emerald-300/70 group-hover:text-emerald-200"}`}>
           {active ? item.iconActive : item.icon}
         </span>
         {isOpen && (
-          <span className="text-sm font-semibold">{item.label}</span>
+          <span className={`text-sm ${active ? "text-white font-semibold" : "font-medium"}`}>{item.label}</span>
         )}
         {!isOpen && (
           <div className="absolute left-full ml-2 px-3 py-2 rounded-xl text-sm font-semibold text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-all z-50 shadow-lg"
-            style={{ background: "rgba(15,118,110,0.95)", backdropFilter: "blur(8px)" }}>
+            style={{ background: "rgba(6,78,59,0.95)", backdropFilter: "blur(8px)" }}>
             {item.label}
           </div>
         )}
@@ -171,36 +171,36 @@ export default function PatientSidebar() {
   };
 
   const sidebarContent = (
-    <div className={`flex flex-col h-full ${isOpen ? "px-3" : "px-2"} transition-all duration-300`}>
+    <div className={`flex flex-col h-full max-h-screen overflow-hidden ${isOpen ? "px-3" : "px-2"} transition-all duration-300`}>
       {/* Logo */}
-      <div className="relative z-10 py-5 px-1">
+      <div className="relative z-10 py-4 px-1 border-b border-white/10 flex-shrink-0">
         <div className={`flex items-center gap-3 ${!isOpen && "justify-center"}`}>
           <div className="relative flex-shrink-0">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-300 to-teal-400 flex items-center justify-center shadow-lg"
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-300 to-teal-400 flex items-center justify-center shadow-lg"
               style={{ boxShadow: "0 4px 16px rgba(20,184,166,0.45)" }}>
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C8 2 5 5 5 9c0 2.5 1 4.5 3 6.5L12 22l4-6.5C18 13.5 19 11.5 19 9c0-4-3-7-7-7z"/>
               </svg>
             </div>
-            <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 text-[7px] text-white font-black shadow ring-2 ring-emerald-400">
-              <svg className="w-2.5 h-2.5" fill="white" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+            <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-400 text-[7px] text-white font-black shadow ring-2 ring-emerald-400">
+              <svg className="w-2 h-2" fill="white" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
             </span>
           </div>
           {isOpen && (
-            <div className="animate-fade-in">
-              <span className="font-bold text-lg text-white leading-none block">VinaMec</span>
-              <span className="text-[10px] text-emerald-300/60 font-medium mt-0.5 block">Dental Clinic</span>
+            <div className="animate-fade-in min-w-0">
+              <span className="font-bold text-base text-white leading-none block truncate">VinaMec</span>
+              <span className="text-[10px] text-emerald-200/70 font-medium tracking-wide mt-0.5 block truncate">Khách hàng & Bệnh nhân</span>
             </div>
           )}
         </div>
         {/* Toggle button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 z-20"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 z-20"
           style={{ background: "linear-gradient(135deg, #5eead4, #14b8a6)", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}
           title={isOpen ? "Thu gọn" : "Mở rộng"}
         >
-          <svg className={`w-3.5 h-3.5 text-white transition-transform duration-300 ${!isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <svg className={`w-3 h-3 text-white transition-transform duration-300 ${!isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -213,30 +213,30 @@ export default function PatientSidebar() {
       </div>
 
       {/* Label */}
-      <div className="px-3 pt-1 pb-2">
-        {isOpen && <span className="text-[10px] font-bold text-emerald-300/50 uppercase tracking-widest">Menu</span>}
+      <div className="px-3 pt-2.5 pb-1.5 flex-shrink-0">
+        {isOpen && <span className="text-[10px] font-bold text-emerald-300/50 uppercase tracking-widest">Tiện ích chăm sóc</span>}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto pb-3 space-y-0.5">
+      <nav className="flex-1 min-h-0 overflow-y-auto pb-2 space-y-0.5" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" }}>
         {menuItems.map((item) => <NavItem key={item.path} item={item} />)}
       </nav>
 
       {/* Divider */}
-      <div className="mx-1 border-t border-white/10 mb-3" />
+      <div className="mx-1 border-t border-white/10 mb-2 flex-shrink-0" />
 
       {/* Footer */}
-      <div className="pb-4 space-y-0.5">
+      <div className="pb-3 pt-1 space-y-1 flex-shrink-0 mt-auto bg-black/15 rounded-xl mx-0.5 px-1">
         <button
           onClick={handleLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-red-300 hover:bg-white/10 hover:text-red-200 ${!isOpen && "justify-center"}`}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-red-300/90 hover:bg-red-500/20 hover:text-red-200 text-xs font-semibold ${!isOpen && "justify-center"}`}
         >
-          <span className="w-7 h-7 flex items-center justify-center flex-shrink-0"><LogoutIcon /></span>
-          {isOpen && <span className="text-sm font-semibold">Đăng xuất</span>}
+          <span className="w-5 h-5 flex items-center justify-center flex-shrink-0"><LogoutIcon /></span>
+          {isOpen && <span>Đăng xuất</span>}
         </button>
         {isOpen && (
-          <div className="px-3 pt-2 text-center">
-            <p className="text-[10px] text-emerald-300/30 font-medium">VinaMec Dental Clinic</p>
+          <div className="px-3 pt-1 text-center">
+            <p className="text-[10px] text-emerald-300/40 font-medium">VinaMec Dental Clinic</p>
           </div>
         )}
       </div>
@@ -253,7 +253,7 @@ export default function PatientSidebar() {
 
       {/* Mobile sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:hidden ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="w-full h-full bg-gradient-to-b from-emerald-800 to-emerald-950 shadow-2xl flex flex-col">
+        <div className="w-full h-full shadow-2xl flex flex-col" style={{ background: "linear-gradient(180deg, #042f2e 0%, #064e3b 50%, #0f766e 100%)" }}>
           {sidebarContent}
         </div>
       </div>
@@ -269,8 +269,8 @@ export default function PatientSidebar() {
       </button>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col h-screen sticky top-0 w-64 transform transition-all duration-300 ease-in-out"
-        style={{ background: "linear-gradient(180deg, #134e4a 0%, #0f766e 40%, #0c4a6e 100%)", boxShadow: "4px 0 24px rgba(0,0,0,0.15)" }}>
+      <aside className="hidden lg:flex flex-col h-screen max-h-screen sticky top-0 w-64 flex-shrink-0 select-none overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ background: "linear-gradient(180deg, #042f2e 0%, #064e3b 40%, #0f766e 100%)", boxShadow: "4px 0 24px rgba(4,47,46,0.25)" }}>
         {sidebarContent}
       </aside>
     </>

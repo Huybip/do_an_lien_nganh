@@ -91,7 +91,7 @@ export default function AdminScores() {
   };
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0f9ff 0%, #f8fafc 50%, #e0f2fe 100%)" }}>
       <AdminSidebar />
       <div className="flex-1 lg:ml-0 min-w-0">
         <div className="glass-header sticky top-0 z-10 px-6 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-3">

@@ -329,7 +329,7 @@ export default function AdminShifts() {
   const afternoonShifts = activeShifts.filter((s) => s.shiftType === "afternoon");
 
   return (
-    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%)" }}>
+    <div className="flex min-h-screen" style={{ background: "linear-gradient(145deg, #f0f9ff 0%, #f8fafc 50%, #e0f2fe 100%)" }}>
       <AdminSidebar />
       <div className="flex-1 lg:ml-0 min-w-0">
         
