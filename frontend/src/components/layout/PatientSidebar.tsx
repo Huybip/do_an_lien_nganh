@@ -126,7 +126,7 @@ export default function PatientSidebar() {
     { label: "Hình ảnh", path: "/patient/images", icon: <ImagesIcon active={false} />, iconActive: <ImagesIcon active /> },
     { label: "Thanh toán", path: "/patient/payments", icon: <PaymentIcon active={false} />, iconActive: <PaymentIcon active /> },
     { label: "Tin nhắn", path: "/patient/chat", icon: <ChatIcon active={false} />, iconActive: <ChatIcon active /> },
-    { label: "Video Call", path: "/video-call", icon: <VideoIcon active={false} />, iconActive: <VideoIcon active /> },
+    /*{ label: "Video Call", path: "/video-call", icon: <VideoIcon active={false} />, iconActive: <VideoIcon active /> },*/
     { label: "Hồ sơ cá nhân", path: "/patient/profile", icon: <ProfileIcon active={false} />, iconActive: <ProfileIcon active /> },
   ];
 

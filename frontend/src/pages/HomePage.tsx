@@ -318,13 +318,12 @@ export default function HomePage() {
             {/* Headline */}
             <h1 className="font-black text-white leading-[1.08] mb-6"
               style={{ fontSize: "clamp(2.4rem, 5.5vw, 4.2rem)", fontFamily: "'Playfair Display', serif" }}>
-              Nụ cười của bạn,{" "}
-              <span style={{ color: "#6ee7b7" }}>sứ mệnh của chúng tôi</span>
+              Hàm răng trắng sáng,{" "}
+              <span style={{ color: "#6ee7b7" }}>nụ cười rạng rỡ</span>
             </h1>
 
             <p className="text-slate-300 text-lg leading-relaxed mb-10 max-w-xl">
-              VinaMec Dental Clinic — Nơi công nghệ tiên tiến gặp gỡ đội ngũ bác sĩ giàu kinh nghiệm,
-              mang đến trải nghiệm nha khoa an toàn, thoải mái và kết quả vượt mong đợi.
+              MIRAI DENTAL CLINIC — Nơi kiến tạo nụ cười mơ ước.
             </p>
 
             {/* CTAs */}
