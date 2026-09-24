@@ -9,15 +9,16 @@ import {
 } from "lucide-react";
 
 // ─── Image Assets ─────────────────────────────────────────────────────────────
-const HERO_IMG = "https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=1400&q=85&auto=format&fit=crop";
+const HERO_IMG = "https://images.unsplash.com/photo-1616391182219-e080b4d1043a?w=1920&q=85&auto=format&fit=crop";
 const CLINIC_IMG = "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800&q=80&auto=format&fit=crop";
-const TEAM_IMG = "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=600&q=80&auto=format&fit=crop";
-const DENTAL_EQUIP = "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=600&q=80&auto=format&fit=crop";
-const IMPLANT_IMG = "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?w=600&q=80&auto=format&fit=crop";
-const WHITENING_IMG = "https://images.unsplash.com/photo-1609840114852-5f7e4e7e0d27?w=600&q=80&auto=format&fit=crop";
-const BRACES_IMG = "https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?w=600&q=80&auto=format&fit=crop";
-const KID_DENTAL = "https://images.unsplash.com/photo-1514849302-984523450cf4?w=600&q=80&auto=format&fit=crop";
-const DENTAL_SMILE = "https://images.unsplash.com/photo-1606265752439-1f18756aa5fc?w=1000&q=80&auto=format&fit=crop";
+const TEAM_IMG = "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&q=80&auto=format&fit=crop";
+const DENTAL_EQUIP = "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&q=80&auto=format&fit=crop";
+const IMPLANT_IMG = "https://images.unsplash.com/photo-1684607633080-df59e6874367?w=800&q=80&auto=format&fit=crop";
+const WHITENING_IMG = "https://images.unsplash.com/photo-1609918438269-9a4c5f8fe3a4?w=800&q=80&auto=format&fit=crop";
+const BRACES_IMG = "https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?w=800&q=80&auto=format&fit=crop";
+const KID_DENTAL = "https://images.unsplash.com/photo-1514849302-984523450cf4?w=800&q=80&auto=format&fit=crop";
+const DENTAL_SMILE = "https://images.unsplash.com/photo-1606265752439-1f18756aa5fc?w=1200&q=85&auto=format&fit=crop";
+
 
 const DOCTOR_PHOTOS = [
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&q=80&auto=format&fit=crop&fp-x=0.5&fp-y=0.2&crop=focalpoint",
@@ -221,14 +222,14 @@ export default function HomePage() {
             {/* Logo */}
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => scrollTo("home")}>
               <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:shadow-xl group-hover:scale-105"
-                style={{ background: "linear-gradient(135deg, #0d9488, #0284c7)", boxShadow: "0 4px 16px rgba(13,148,136,0.35)" }}>
+                style={{ background: "linear-gradient(135deg, #0284c7, #2563eb)", boxShadow: "0 4px 16px rgba(2,132,199,0.35)" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M12 2C9.5 2 7.5 3.5 7 6C6 6 5 7 5 8.5C5 10 6 11 7 12C7 12.5 6.5 13 6 13.5C5.5 14 5 14.5 5 15C5 16.5 6 18 7 19C8 20 9 21 10.5 21.5C10.5 21.5 11 22 11 22C11 22 11.5 21.5 11.5 21.5C13 21 14 20 15 19C16 18 17 16.5 17 15C17 14.5 16.5 14 16 13.5C15.5 13 15 12.5 15 12C16 11 17 10 17 8.5C17 7 16 6 15 6C14.5 3.5 12.5 2 12 2Z" />
                 </svg>
               </div>
               <div>
                 <span className="text-xl font-black leading-tight block" style={{ color: scrolled ? "#0f172a" : "white" }}>
-                  Vina<span style={{ color: "#0d9488" }}>Mec</span>
+                  M<span style={{ color: "#0284c7" }}>IRAI </span>
                 </span>
                 <span className="text-[10px] tracking-widest font-semibold uppercase" style={{ color: scrolled ? "#94a3b8" : "rgba(255,255,255,0.55)" }}>Dental Clinic</span>
               </div>
@@ -240,7 +241,7 @@ export default function HomePage() {
                 <button key={l.id} onClick={() => scrollTo(l.id)}
                   className="px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
                   style={{ color: scrolled ? "#64748b" : "rgba(255,255,255,0.82)" }}
-                  onMouseEnter={e => { e.currentTarget.style.color = "#0d9488"; e.currentTarget.style.background = scrolled ? "#f0fdfa" : "rgba(255,255,255,0.1)"; }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "#0284c7"; e.currentTarget.style.background = scrolled ? "#f0f9ff" : "rgba(255,255,255,0.1)"; }}
                   onMouseLeave={e => { e.currentTarget.style.color = scrolled ? "#64748b" : "rgba(255,255,255,0.82)"; e.currentTarget.style.background = "transparent"; }}>
                   {l.label}
                 </button>
@@ -251,14 +252,14 @@ export default function HomePage() {
             <div className="hidden lg:flex items-center gap-3">
               <button onClick={() => navigate("/login")}
                 className="px-5 py-2.5 rounded-full text-sm font-semibold border-2 transition-all duration-200"
-                style={{ color: scrolled ? "#0d9488" : "white", borderColor: scrolled ? "#0d9488" : "rgba(255,255,255,0.35)", background: "transparent" }}
-                onMouseEnter={e => { e.currentTarget.style.background = scrolled ? "#0d9488" : "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "white"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = scrolled ? "#0d9488" : "white"; }}>
+                style={{ color: scrolled ? "#0284c7" : "white", borderColor: scrolled ? "#0284c7" : "rgba(255,255,255,0.35)", background: "transparent" }}
+                onMouseEnter={e => { e.currentTarget.style.background = scrolled ? "#0284c7" : "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "white"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = scrolled ? "#0284c7" : "white"; }}>
                 Đăng nhập
               </button>
               <button onClick={() => navigate("/login")}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full text-white text-sm font-bold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
-                style={{ background: "linear-gradient(135deg, #0d9488, #0284c7)", boxShadow: "0 4px 16px rgba(13,148,136,0.35)" }}>
+                style={{ background: "linear-gradient(135deg, #0284c7, #2563eb)", boxShadow: "0 4px 16px rgba(2,132,199,0.35)" }}>
                 <Calendar size={15} />
                 Đặt lịch khám
               </button>
@@ -277,18 +278,18 @@ export default function HomePage() {
             <div className="max-w-7xl mx-auto px-5 py-4 space-y-1">
               {NAV_LINKS.map(l => (
                 <button key={l.id} onClick={() => scrollTo(l.id)}
-                  className="block w-full text-left px-4 py-3 rounded-xl text-slate-700 font-semibold text-sm hover:bg-emerald-50 hover:text-emerald-700 transition">
+                  className="block w-full text-left px-4 py-3 rounded-xl text-slate-700 font-semibold text-sm hover:bg-sky-50 hover:text-sky-700 transition">
                   {l.label}
                 </button>
               ))}
               <div className="pt-3 border-t border-slate-100 space-y-2">
                 <button onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-emerald-500 text-emerald-700 font-semibold text-sm hover:bg-emerald-50 transition">
+                  className="w-full px-4 py-3 rounded-xl border-2 border-sky-500 text-sky-700 font-semibold text-sm hover:bg-sky-50 transition">
                   Đăng nhập
                 </button>
                 <button onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}
                   className="w-full px-4 py-3 rounded-xl text-white font-bold text-sm text-center shadow-md"
-                  style={{ background: "linear-gradient(135deg, #0d9488, #0284c7)" }}>
+                  style={{ background: "linear-gradient(135deg, #0284c7, #2563eb)" }}>
                   Đặt lịch khám
                 </button>
               </div>
@@ -301,25 +302,25 @@ export default function HomePage() {
       <section id="home" className="relative min-h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img src={HERO_IMG} alt="VinaMec Dental Clinic" className="w-full h-full object-cover" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(6,78,59,0.94) 0%, rgba(2,132,199,0.80) 45%, rgba(6,78,59,0.90) 100%)" }} />
-          <div className="absolute top-20 right-10 w-72 h-72 rounded-full opacity-10" style={{ background: "#5eead4", filter: "blur(80px)" }} />
-          <div className="absolute bottom-20 left-10 w-96 h-96 rounded-full opacity-10" style={{ background: "#7dd3fc", filter: "blur(80px)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(10,37,64,0.88) 0%, rgba(2,132,199,0.70) 50%, rgba(15,23,42,0.86) 100%)" }} />
+          <div className="absolute top-20 right-10 w-72 h-72 rounded-full opacity-15" style={{ background: "#38bdf8", filter: "blur(90px)" }} />
+          <div className="absolute bottom-20 left-10 w-96 h-96 rounded-full opacity-15" style={{ background: "#60a5fa", filter: "blur(90px)" }} />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-32 w-full">
           <div className="max-w-3xl">
             {/* Badge */}
             <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-8 border"
-              style={{ background: "rgba(16,185,129,0.15)", borderColor: "rgba(16,185,129,0.35)" }}>
-              <div className="w-2 h-2 rounded-full" style={{ background: "#6ee7b7", animation: "pulse 2s infinite" }} />
-              <span className="text-emerald-300 text-sm font-semibold">Hệ thống nha khoa hàng đầu Việt Nam</span>
+              style={{ background: "rgba(2,132,199,0.20)", borderColor: "rgba(56,189,248,0.40)", backdropFilter: "blur(8px)" }}>
+              <div className="w-2 h-2 rounded-full" style={{ background: "#38bdf8", animation: "pulse 2s infinite" }} />
+              <span className="text-sky-300 text-sm font-semibold">Hệ thống nha khoa hàng đầu Việt Nam</span>
             </div>
 
             {/* Headline */}
             <h1 className="font-black text-white leading-[1.08] mb-6"
               style={{ fontSize: "clamp(2.4rem, 5.5vw, 4.2rem)", fontFamily: "'Playfair Display', serif" }}>
               Hàm răng trắng sáng,{" "}
-              <span style={{ color: "#6ee7b7" }}>nụ cười rạng rỡ</span>
+              <span style={{ color: "#38bdf8" }}>nụ cười rạng rỡ</span>
             </h1>
 
             <p className="text-slate-300 text-lg leading-relaxed mb-10 max-w-xl">
@@ -329,8 +330,8 @@ export default function HomePage() {
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 mb-14">
               <button onClick={() => navigate("/login")}
-                className="flex items-center justify-center gap-2.5 px-9 py-4 rounded-full text-white font-bold text-base shadow-2xl transition-all duration-300 hover:shadow-teal-500/30 hover:-translate-y-1 active:translate-y-0"
-                style={{ background: "linear-gradient(135deg, #0d9488, #0284c7)", boxShadow: "0 8px 32px rgba(13,148,136,0.45)" }}>
+                className="flex items-center justify-center gap-2.5 px-9 py-4 rounded-full text-white font-bold text-base shadow-2xl transition-all duration-300 hover:shadow-sky-500/35 hover:-translate-y-1 active:translate-y-0"
+                style={{ background: "linear-gradient(135deg, #0284c7, #2563eb)", boxShadow: "0 8px 32px rgba(2,132,199,0.45)" }}>
                 <Calendar size={18} />
                 Đặt lịch khám ngay
               </button>
@@ -345,7 +346,7 @@ export default function HomePage() {
             {/* Trust badges */}
             <div className="flex flex-wrap gap-6">
               {[
-                { icon: <Shield size={17} strokeWidth={2} />, text: "Vô trùng tuyệt đối", color: "#6ee7b7" },
+                { icon: <Shield size={17} strokeWidth={2} />, text: "Vô trùng tuyệt đối", color: "#38bdf8" },
                 { icon: <Award size={17} strokeWidth={2} />, text: "Bác sĩ chuyên môn", color: "#93c5fd" },
                 { icon: <Star size={17} strokeWidth={2} />, text: "10.000+ đánh giá 5★", color: "#fcd34d" },
               ].map(item => (
@@ -365,8 +366,8 @@ export default function HomePage() {
               {STATS.map((s) => (
                 <div key={s.label} className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-                    style={{ background: "rgba(16,185,129,0.18)" }}>
-                    <span style={{ color: "#6ee7b7" }}>{s.icon}</span>
+                    style={{ background: "rgba(2,132,199,0.22)" }}>
+                    <span style={{ color: "#38bdf8" }}>{s.icon}</span>
                   </div>
                   <div>
                     <p className="text-white font-bold text-lg leading-tight">{s.value}</p>
@@ -616,7 +617,7 @@ export default function HomePage() {
       <section className="relative py-24 overflow-hidden">
         <div className="absolute inset-0">
           <img src={DENTAL_SMILE} alt="Dental AI" className="w-full h-full object-cover" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.94) 0%, rgba(13,148,136,0.90) 100%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(10,37,64,0.92) 0%, rgba(2,132,199,0.86) 100%)" }} />
         </div>
         <div className="absolute inset-0">
           <div className="absolute top-10 left-20 w-48 h-48 rounded-full bg-white/5 blur-3xl" />
@@ -626,7 +627,7 @@ export default function HomePage() {
           <Reveal>
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6 border"
               style={{ background: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.25)" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" strokeWidth="2"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/></svg>
               <span className="text-white text-sm font-semibold">Trí tuệ nhân tạo</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-black text-white mb-5 leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
@@ -645,7 +646,7 @@ export default function HomePage() {
               </button>
               <button onClick={() => navigate("/login")}
                 className="flex items-center justify-center gap-2 px-10 py-4 rounded-full font-bold text-base transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "white", color: "#0d9488", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>
+                style={{ background: "white", color: "#0284c7", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>
                 <Calendar size={20} />
                 Đặt lịch khám
               </button>
