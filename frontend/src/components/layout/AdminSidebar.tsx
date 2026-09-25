@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -14,6 +14,29 @@ export default function AdminSidebar() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Auto-sync admin name if it contains legacy 'Admin VinaMec'
+  useEffect(() => {
+    if (user && /admin\s*vinamec/i.test(user.name)) {
+      try {
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (/admin\s*vinamec/i.test(parsed.name)) {
+            parsed.name = "Admin";
+            localStorage.setItem("user", JSON.stringify(parsed));
+          }
+        }
+      } catch {}
+    }
+  }, [user]);
+
+  const adminDisplayName = (() => {
+    if (!user?.name) return "Admin";
+    if (/admin\s*vinamec/i.test(user.name)) return "Admin";
+    if (user.role === "admin" && (/vinamec/i.test(user.name) || /admin/i.test(user.name))) return "Admin";
+    return user.name;
+  })();
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
@@ -151,7 +174,7 @@ export default function AdminSidebar() {
             </div>
             {isOpen && (
               <div className="min-w-0">
-                <span className="font-black text-white text-base block leading-tight truncate">VinaMec</span>
+                <span className="font-black text-white text-base block leading-tight truncate">Mirai</span>
                 <span className="text-[10px] text-sky-200/70 font-medium tracking-wide truncate block">Hệ thống quản trị</span>
               </div>
             )}
@@ -202,10 +225,10 @@ export default function AdminSidebar() {
           <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-white/5 mb-1 border border-white/5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #0284c7, #0369a1)" }}>
-              {user.name?.charAt(0)?.toUpperCase() || "A"}
+              {adminDisplayName?.charAt(0)?.toUpperCase() || "A"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-white truncate">{user.name}</p>
+              <p className="text-xs font-bold text-white truncate">{adminDisplayName}</p>
               <p className="text-[10px] text-sky-200/60 truncate">Quản trị viên</p>
             </div>
           </div>

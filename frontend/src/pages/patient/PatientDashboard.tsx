@@ -136,7 +136,7 @@ export default function PatientDashboard() {
                   Chào mừng trở lại, <span style={{ color: "#0d9488" }}>{user?.name?.split(" ").pop()}</span>
                 </h2>
                 <p className="text-slate-500 text-sm mt-2 max-w-md leading-relaxed">
-                  Cảm ơn bạn đã tin tưởng VinaMec. Hãy cùng chăm sóc sức khỏe răng miệng mỗi ngày nhé!
+                  Cảm ơn bạn đã tin tưởng chúng tôi. Hãy cùng chăm sóc sức khỏe răng miệng mỗi ngày nhé!
                 </p>
                 <div className="flex gap-3 mt-5 flex-wrap">
                   <button onClick={() => navigate("/patient/appointments")}

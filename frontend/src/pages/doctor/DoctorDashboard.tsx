@@ -150,7 +150,7 @@ export default function DoctorDashboard() {
                   Xin chào, <span style={{ color: "#7c3aed" }}>Dr. {user?.name?.split(" ").pop()}</span>
                 </h2>
                 <p className="text-slate-500 text-sm mt-2 max-w-md leading-relaxed">
-                  Cảm ơn bạn đã làm việc cùng VinaMec. Hãy cùng chăm sóc sức khỏe răng miệng cho bệnh nhân nhé!
+                  Hãy cùng chăm sóc sức khỏe răng miệng cho bệnh nhân nhé!
                 </p>
               </div>
               <div className="flex gap-3 flex-wrap">

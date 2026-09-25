@@ -134,7 +134,7 @@ export default function DoctorSidebar() {
             </div>
             {isOpen && (
               <div className="min-w-0">
-                <span className="font-bold text-white text-base block leading-tight truncate">VinaMec</span>
+                <span className="font-bold text-white text-base block leading-tight truncate">Dental</span>
                 <span className="text-[10px] text-violet-200/70 font-medium tracking-wide truncate block">Bác sĩ chuyên khoa</span>
               </div>
             )}

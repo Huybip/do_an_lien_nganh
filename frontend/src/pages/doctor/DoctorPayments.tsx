@@ -299,11 +299,11 @@ function QRModal({ payment, open, onClose, onSuccess }: {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-scale-in">
         {/* Header */}
         <div
-          className="px-6 py-4 flex items-center justify-between"
+          className="px-6 py-4 flex items-center justify-between flex-shrink-0 z-10"
           style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
         >
           <div className="flex items-center gap-3">
@@ -315,10 +315,10 @@ function QRModal({ payment, open, onClose, onSuccess }: {
               <p className="text-blue-200 text-xs">Ma hoa don: {payment.invoiceNumber}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light">X</button>
+          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light leading-none">✕</button>
         </div>
 
-        <div className="p-6 space-y-4 text-center">
+        <div className="p-6 space-y-4 text-center overflow-y-auto flex-1 overscroll-contain" style={{ scrollbarWidth: "thin" }}>
           {loading ? (
             <div className="py-8 text-slate-500">Dang tao ma QR...</div>
           ) : qrData ? (

@@ -446,17 +446,17 @@ function CreatePaymentModal({ open, onClose, onCreated }: { open: boolean; onClo
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gradient-to-r from-sky-50 to-blue-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-scale-in">
+        <div className="sticky top-0 bg-gradient-to-r from-sky-50 to-blue-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 z-10">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Tạo phiếu thu mới</h2>
             <p className="text-sm text-slate-500 mt-1">Bước {step === "patient" ? "1" : step === "services" ? "2" : "3"} / 3</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">✕</button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 overscroll-contain" style={{ scrollbarWidth: "thin" }}>
           {step === "patient" && (
             <>
               <div>
@@ -946,17 +946,17 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-        <div className="bg-gradient-to-r from-sky-50 to-blue-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-scale-in">
+        <div className="sticky top-0 bg-gradient-to-r from-sky-50 to-blue-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 z-10">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Chi tiết phiếu thu</h2>
             <p className="text-sm text-slate-500 mt-1 font-mono">{payment.invoiceNumber}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">✕</button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain" style={{ scrollbarWidth: "thin" }}>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-50 rounded-xl p-3">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Bệnh nhân</p>
@@ -1481,11 +1481,11 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-scale-in">
         {/* Header */}
         <div
-          className="sticky top-0 px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10"
+          className="sticky top-0 px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 z-10"
           style={{ background: "linear-gradient(135deg, #003A70 0%, #0055A4 100%)" }}
         >
           <div className="flex items-center gap-3">
@@ -1499,10 +1499,10 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light">✕</button>
+          <button onClick={onClose} className="text-blue-200 hover:text-white text-2xl font-light leading-none">✕</button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 overscroll-contain" style={{ scrollbarWidth: "thin" }}>
           {/* ── Step 1: Patient + Appointment + Services ── */}
           {step === "patient" && (
             <>

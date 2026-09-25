@@ -119,7 +119,7 @@ export default function AdminDashboard() {
               <div>
                 <p className="text-sky-600 text-xs font-bold tracking-wide uppercase mb-1">Chào mừng quay trở lại</p>
                 <h2 className="text-2xl lg:text-3xl font-black leading-tight text-slate-900">
-                  Hệ thống <span style={{ color: "#0ea5e9" }}>VinaMec</span>
+                  Hệ thống <span style={{ color: "#0ea5e9" }}>Medical</span>
                 </h2>
                 <p className="text-slate-500 text-sm mt-2 max-w-md leading-relaxed">
                   Theo dõi toàn bộ hoạt động của phòng khám nha khoa từ đây.

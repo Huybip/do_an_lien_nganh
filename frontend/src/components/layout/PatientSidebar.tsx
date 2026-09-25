@@ -188,7 +188,7 @@ export default function PatientSidebar() {
           </div>
           {isOpen && (
             <div className="animate-fade-in min-w-0">
-              <span className="font-bold text-base text-white leading-none block truncate">VinaMec</span>
+              <span className="font-bold text-base text-white leading-none block truncate">Medical</span>
               <span className="text-[10px] text-emerald-200/70 font-medium tracking-wide mt-0.5 block truncate">Khách hàng & Bệnh nhân</span>
             </div>
           )}

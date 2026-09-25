@@ -120,7 +120,7 @@ async function seed() {
 
   // Create admin
   const adminUser = await User.create({
-    name: "Admin VinaMec",
+    name: "Admin",
     email: "admin@vinamec.vn",
     password: "admin123",
     role: "admin",
