@@ -688,9 +688,9 @@ const handlePrintInvoice = (pObj: Payment) => {
       <body>
         <div class="header">
           <div class="clinic-info">
-            <h1>Nha Khoa VinaMec</h1>
-            <p>Địa chỉ: 123 Đường Nguyễn Trãi, Quận Thanh Xuân, Hà Nội</p>
-            <p>Hotline: 0912 345 678 | Website: vinamecdental.vn</p>
+            <h1>Nha Khoa MIRAI</h1>
+            <p>Địa chỉ: Roman Plaza, Mỗ Lao, Hà Nội</p>
+            <p>Hotline: 0123456789 | Website: miraidental.vn</p>
           </div>
           <div style="text-align: right; font-size: 13px; color: #64748b;">
             <p style="margin: 0 0 5px 0;">Ngày tạo: <strong>${new Date(pObj.createdAt).toLocaleDateString("vi-VN")}</strong></p>
@@ -937,7 +937,7 @@ function PaymentDetailModal({ payment, open, onClose, onUpdated }: {
     if (!qrData?.qrDataUrl) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${payment.invoiceNumber}</p><p>Benh nhan: ${payment.patientName}</p><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p><p>STK: ${qrData.accountNo} - ${qrData.accountName} (${qrData.bankId})</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
+    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}</style></head><body><h2>Phong Kham Nha Khoa MIRAI</h2><p>Ma hoa don: ${payment.invoiceNumber}</p><p>Benh nhan: ${payment.patientName}</p><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${Number(qrData.amount).toLocaleString("vi-VN")} VND</p><p>STK: ${qrData.accountNo} - ${qrData.accountName} (${qrData.bankId})</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
     win.document.close();
   };
 
@@ -1474,7 +1474,7 @@ function QRPaymentModal({ open, onClose, onSuccess }: {
     if (!qrData?.qrDataUrl || !createdPayment) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}.receipt{border:1px solid #ddd;padding:20px;max-width:400px;margin:0 auto;}</style></head><body><h2>Phong Kham Nha Khoa VinaMec</h2><p>Ma hoa don: ${createdPayment.invoiceNumber}</p><p>Benh nhan: ${selectedPatient?.name}</p><p>Lí do: ${reason}</p><hr/><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${total.toLocaleString("vi-VN")} VND</p><p>STK: ${qrData.accountNo} - ${qrData.accountName} (${qrData.bankId})</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
+    win.document.write(`<html><head><title>In QR Thanh Toan</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:40px;}h2{color:#003A70;}p{font-size:14px;color:#555;}img{border:4px solid #003A70;border-radius:12px;}.info{margin-top:16px;font-weight:bold;color:#059669;}.receipt{border:1px solid #ddd;padding:20px;max-width:400px;margin:0 auto;}</style></head><body><h2>Phong Kham Nha Khoa MIRAI</h2><p>Ma hoa don: ${createdPayment.invoiceNumber}</p><p>Benh nhan: ${selectedPatient?.name}</p><p>Lí do: ${reason}</p><hr/><img src="${qrData.qrDataUrl}" width="300"/><p class="info">So tien: ${total.toLocaleString("vi-VN")} VND</p><p>STK: ${qrData.accountNo} - ${qrData.accountName} (${qrData.bankId})</p><p>Noi dung: ${qrData.addInfo}</p><script>window.print();<\/script></body></html>`);
     win.document.close();
   };
 
