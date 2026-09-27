@@ -174,7 +174,7 @@ export default function AdminSidebar() {
             </div>
             {isOpen && (
               <div className="min-w-0">
-                <span className="font-black text-white text-base block leading-tight truncate">Mirai</span>
+                <span className="font-black text-white text-base block leading-tight truncate">Vinamec</span>
                 <span className="text-[10px] text-sky-200/70 font-medium tracking-wide truncate block">Hệ thống quản trị</span>
               </div>
             )}

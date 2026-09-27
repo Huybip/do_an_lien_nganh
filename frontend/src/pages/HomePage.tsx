@@ -229,7 +229,7 @@ export default function HomePage() {
               </div>
               <div>
                 <span className="text-xl font-black leading-tight block" style={{ color: scrolled ? "#0f172a" : "white" }}>
-                  M<span style={{ color: "#0284c7" }}>IRAI </span>
+                  VINA<span style={{ color: "#0284c7" }}>MEC</span>
                 </span>
                 <span className="text-[10px] tracking-widest font-semibold uppercase" style={{ color: scrolled ? "#94a3b8" : "rgba(255,255,255,0.55)" }}>Dental Clinic</span>
               </div>
@@ -324,7 +324,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-slate-300 text-lg leading-relaxed mb-10 max-w-xl">
-              MIRAI DENTAL CLINIC — Nơi kiến tạo nụ cười mơ ước.
+              VINAMEC DENTAL CLINIC — Nơi kiến tạo nụ cười mơ ước.
             </p>
 
             {/* CTAs */}

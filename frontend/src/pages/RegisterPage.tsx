@@ -34,12 +34,12 @@ export default function RegisterPage() {
       <div className="w-full max-w-md animate-slide-up">
         <div className="text-center mb-6">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-white/10 backdrop-blur border border-white/20 items-center justify-center text-white text-2xl mb-3">🦷</div>
-          <h1 className="font-display font-bold text-2xl text-white">VinaMec</h1>
+          <h1 className="font-display font-bold text-2xl text-white">Vinamec</h1>
         </div>
 
         <div className="bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-8">
           <h2 className="font-display font-bold text-2xl text-surface-900 mb-1">Create Account</h2>
-          <p className="text-surface-500 text-sm mb-6">Join VinaMec Dental Care System</p>
+          <p className="text-surface-500 text-sm mb-6">Join Vinamec Dental Care System</p>
 
           {error && <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">⚠️ {error}</div>}
           {success && <div className="mb-4 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-600">✅ Registered successfully! Redirecting...</div>}
