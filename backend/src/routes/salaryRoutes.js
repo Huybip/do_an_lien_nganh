@@ -17,8 +17,8 @@ const { auth, authorize } = require("../middleware/auth");
 router.use(auth);
 
 // @route   POST /api/salaries/calculate
-// @desc    Calculate salary for a doctor (Admin only)
-router.post("/calculate", authorize("admin"), calculateSalary);
+// @desc    Calculate salary for a doctor (Admin or Doctor)
+router.post("/calculate", authorize("admin", "doctor"), calculateSalary);
 
 // @route   GET /api/salaries
 // @desc    List all salaries (Admin only)
@@ -33,8 +33,8 @@ router.get("/me", getMySalaries);
 router.get("/summary/:month/:year", authorize("admin"), getSalarySummary);
 
 // @route   GET /api/salaries/:id/detail
-// @desc    Get detailed salary with all shift/appointment info for a salary record (Admin only)
-router.get("/:id/detail", authorize("admin"), getSalaryDetail);
+// @desc    Get detailed salary with all shift/appointment info for a salary record (Admin or Doctor)
+router.get("/:id/detail", authorize("admin", "doctor"), getSalaryDetail);
 
 // @route   GET /api/salaries/:doctorId/:month/:year
 // @desc    Get salary for a specific doctor/month/year

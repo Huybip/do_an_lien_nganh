@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import ChangePasswordModal from "../common/ChangePasswordModal";
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -14,6 +15,7 @@ export default function AdminSidebar() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   // Auto-sync admin name if it contains legacy 'Admin VinaMec'
   useEffect(() => {
@@ -234,6 +236,20 @@ export default function AdminSidebar() {
           </div>
         )}
 
+        <button
+          onClick={() => {
+            setChangePasswordOpen(true);
+            setMobileOpen(false);
+          }}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sky-100/70 hover:bg-white/10 hover:text-white transition text-xs font-semibold ${!isOpen && "justify-center"}`}
+          title={!isOpen ? "Đổi mật khẩu" : undefined}
+        >
+          <svg className="w-4 h-4 flex-shrink-0 text-sky-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+          </svg>
+          {isOpen && <span>Đổi mật khẩu</span>}
+        </button>
+
         <button onClick={() => navigate("/admin/help")}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sky-100/60 hover:bg-white/10 hover:text-white transition text-xs font-semibold ${!isOpen && "justify-center"}`}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -290,6 +306,12 @@ export default function AdminSidebar() {
       }`} style={{ background: "linear-gradient(180deg, #03162b 0%, #0c2d48 50%, #1e3e62 100%)", boxShadow: "4px 0 24px rgba(3,22,43,0.3)" }}>
         {NavContent()}
       </aside>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </>
   );
 }

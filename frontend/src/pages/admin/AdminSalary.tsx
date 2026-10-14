@@ -208,9 +208,9 @@ export default function AdminSalary() {
       const res = await salaryApi.list({ month, year, limit: 1000 });
       const records = unwrap<any[]>(res);
       const mapped = doctorsList.map((doc) => {
-        const docId = doc.id || doc._id;
+        const docId = (doc.id || doc._id || "").toString();
         const record = records.find((r: any) => {
-          const rDocId = r.doctorId?._id || r.doctorId || "";
+          const rDocId = (r.doctorId?._id || r.doctorId || "").toString();
           return rDocId === docId;
         });
         if (record) {
@@ -252,9 +252,33 @@ export default function AdminSalary() {
   };
 
   const handleOpenDetailModal = async (salaryRecord: any) => {
-    const salaryId = salaryRecord._id;
+    let salaryId = salaryRecord._id;
     if (!salaryId) {
-      alert("Bản ghi lương chưa được tính toán. Vui lòng đồng bộ trước!");
+      const docId = salaryRecord.id || salaryRecord.doctorId;
+      if (docId) {
+        setDetailModal({ open: true, salaryId: null, data: null, loading: true });
+        try {
+          const degree = doctorDegrees[docId] || salaryRecord.degree || "Đại học";
+          const docCoeff = degreeCoefficients[degree] || 1.2;
+          const res = await salaryApi.calculate({
+            doctorId: docId,
+            month: filterMonth,
+            year: filterYear,
+            basicHourlyRate,
+            degreeCoefficient: docCoeff,
+          });
+          const calData = unwrap(res);
+          salaryId = calData._id || calData.id;
+          fetchMonthlySummary(filterMonth, filterYear);
+        } catch (e) {
+          console.error("Auto calculation failed:", e);
+        }
+      }
+    }
+
+    if (!salaryId) {
+      alert("Chưa thể tải dữ liệu chi tiết cho bác sĩ này.");
+      setDetailModal({ open: false, salaryId: null, data: null, loading: false });
       return;
     }
     setDetailModal({ open: true, salaryId, data: null, loading: true });
@@ -352,11 +376,11 @@ export default function AdminSalary() {
       const res = await salaryApi.list({ year, limit: 1000 });
       const records = unwrap<any[]>(res);
       const grouped = doctorsList.map((doc) => {
-        const id = doc.id || doc._id;
+        const id = (doc.id || doc._id || "").toString();
         const degree = doctorDegrees[id] || "Đại học";
         const docCoeff = degreeCoefficients[degree] || 1.2;
         const docRecords = records.filter((r: any) => {
-          const rDocId = r.doctorId?._id || r.doctorId || "";
+          const rDocId = (r.doctorId?._id || r.doctorId || "").toString();
           return rDocId === id;
         });
         const totalAmount = docRecords.reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0);

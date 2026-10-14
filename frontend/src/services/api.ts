@@ -73,6 +73,8 @@ export const authApi = {
     api.post("/auth/login", { email, password }),
   register: (data: Record<string, string>) => api.post("/auth/register", data),
   me: () => api.get("/auth/me"),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.put("/auth/change-password", data),
 };
 
 // ─── Users ──────────────────────────────────────────────────────────────────

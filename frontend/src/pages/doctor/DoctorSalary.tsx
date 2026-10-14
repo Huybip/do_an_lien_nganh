@@ -142,18 +142,24 @@ export default function DoctorSalary() {
     if (!doctorId) return;
     setLoadingSalary(true);
     try {
-      const res = await salaryApi.calculate({
-        doctorId,
-        month: filterMonth,
-        year: filterYear,
-        basicHourlyRate,
-        degreeCoefficient: userCoeff,
-      });
-      const data = unwrap(res);
+      let data = null;
+      try {
+        const getRes = await salaryApi.get(doctorId, filterMonth, filterYear);
+        data = unwrap(getRes);
+      } catch {
+        const res = await salaryApi.calculate({
+          doctorId,
+          month: filterMonth,
+          year: filterYear,
+          basicHourlyRate,
+          degreeCoefficient: userCoeff,
+        });
+        data = unwrap(res);
+      }
       setCurrentSalary(data);
-      // Save salary record ID for modal
-      if (data && data._id) setSalaryRecordId(data._id);
-    } catch {
+      if (data && (data._id || data.id)) setSalaryRecordId(data._id || data.id);
+    } catch (err) {
+      console.error("Error fetching salary:", err);
       setCurrentSalary(null);
       setSalaryRecordId(null);
     } finally {
@@ -170,14 +176,20 @@ export default function DoctorSalary() {
         Array.from({ length: 12 }, async (_, idx) => {
           const month = idx + 1;
           try {
-            const res = await salaryApi.calculate({
-              doctorId,
-              month,
-              year: filterYear,
-              basicHourlyRate,
-              degreeCoefficient: userCoeff,
-            });
-            const data = unwrap(res);
+            let data = null;
+            try {
+              const getRes = await salaryApi.get(doctorId, month, filterYear);
+              data = unwrap(getRes);
+            } catch {
+              const res = await salaryApi.calculate({
+                doctorId,
+                month,
+                year: filterYear,
+                basicHourlyRate,
+                degreeCoefficient: userCoeff,
+              });
+              data = unwrap(res);
+            }
             return { ...data, month };
           } catch {
             return {
@@ -219,19 +231,43 @@ export default function DoctorSalary() {
     try {
       const res = await salaryApi.getDetail(salaryId);
       setDetailModal(prev => ({ ...prev, data: unwrap(res), loading: false }));
-    } catch {
+    } catch (err) {
+      console.error("Error loading salary detail:", err);
       setDetailModal(prev => ({ ...prev, data: null, loading: false }));
     }
   };
 
-  const handleOpenDetailModal = async () => {
-    if (!salaryRecordId) {
-      // Trigger calculation first to get a record
-      await fetchCurrentSalary();
+  const handleOpenDetailModal = async (customId?: string) => {
+    let targetId = customId || salaryRecordId;
+    if (!targetId && currentSalary && (currentSalary._id || currentSalary.id)) {
+      targetId = currentSalary._id || currentSalary.id;
+    }
+
+    if (!targetId && doctorId) {
+      try {
+        const res = await salaryApi.calculate({
+          doctorId,
+          month: filterMonth,
+          year: filterYear,
+          basicHourlyRate,
+          degreeCoefficient: userCoeff,
+        });
+        const d = unwrap(res);
+        targetId = d?._id || d?.id;
+        setCurrentSalary(d);
+        if (targetId) setSalaryRecordId(targetId);
+      } catch (err) {
+        console.error("Failed to calculate before opening detail modal:", err);
+      }
+    }
+
+    if (!targetId) {
+      toast.info("Chưa có bản ghi lương chi tiết cho tháng này.");
       return;
     }
-    setDetailModal({ open: true, salaryId: salaryRecordId, data: null, loading: true });
-    await fetchSalaryDetail(salaryRecordId);
+
+    setDetailModal({ open: true, salaryId: targetId, data: null, loading: true });
+    await fetchSalaryDetail(targetId);
   };
 
   // Trigger fetches when profile is loaded or filters change
@@ -487,12 +523,28 @@ export default function DoctorSalary() {
 
               {/* Current month salary card */}
               <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                   <h3 className="font-black text-slate-800 text-lg">Phiếu lương tháng {filterMonth}/{filterYear}</h3>
                   {currentMonthData && (
-                    <span className="px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
-                      ✓ Đã tính toán
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                        currentSalary?.status === "paid"
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                          : currentSalary?.status === "approved"
+                            ? "bg-blue-50 border-blue-200 text-blue-700"
+                            : "bg-violet-50 border-violet-200 text-violet-700"
+                      }`}>
+                        {currentSalary?.status === "paid" ? "✓ Đã thanh toán" :
+                         currentSalary?.status === "approved" ? "✓ Đã duyệt" : "✓ Đã tính toán"}
+                      </span>
+                      <button
+                        onClick={() => handleOpenDetailModal()}
+                        className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5"
+                      >
+                        <span>📋</span>
+                        <span>Xem chi tiết</span>
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -622,6 +674,7 @@ export default function DoctorSalary() {
                           <th className="px-4 py-3 text-center">Số ca khó</th>
                           <th className="px-4 py-3 text-right">Lương thực nhận</th>
                           <th className="px-4 py-3 text-center">Trạng thái</th>
+                          <th className="px-4 py-3 text-center">Chi tiết</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -653,6 +706,14 @@ export default function DoctorSalary() {
                                    record.status === "approved" ? "Đã duyệt" :
                                    record.status === "calculated" ? "Đã tính" : "Nháp"}
                                 </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                <button
+                                  onClick={() => handleOpenDetailModal(record._id || record.id)}
+                                  className="px-2.5 py-1 bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg text-xs font-bold transition"
+                                >
+                                  📋 Xem
+                                </button>
                               </td>
                             </tr>
                           );

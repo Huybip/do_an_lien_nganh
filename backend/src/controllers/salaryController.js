@@ -8,10 +8,21 @@ const { notifyDoctorSalaryUpdated } = require("../socket/salarySocket");
 
 // @desc    Calculate salary for a doctor in a specific month/year
 // @route   POST /api/salaries/calculate
-// @access  Private/Admin
+// @access  Private/Admin or Doctor
 exports.calculateSalary = asyncHandler(async (req, res) => {
-  const { doctorId, month, year, basicHourlyRate, degreeCoefficient } =
-    req.body;
+  let { doctorId, month, year, basicHourlyRate, degreeCoefficient } = req.body;
+
+  // If doctor calls calculate, ensure doctorId is their own
+  if (req.user.role === "doctor") {
+    const docProfile = await Doctor.findOne({ user: req.user._id });
+    if (!docProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor profile not found for this user",
+      });
+    }
+    doctorId = docProfile._id.toString();
+  }
 
   // Validate inputs
   if (!doctorId || !month || !year) {
@@ -20,6 +31,9 @@ exports.calculateSalary = asyncHandler(async (req, res) => {
       message: "doctorId, month, and year are required",
     });
   }
+
+  month = parseInt(month);
+  year = parseInt(year);
 
   if (month < 1 || month > 12) {
     return res.status(400).json({
@@ -37,12 +51,12 @@ exports.calculateSalary = asyncHandler(async (req, res) => {
     });
   }
 
-  // Fetch all shifts for the doctor in that month/year
+  // Fetch all shifts for the doctor in that month/year (matching by doctorId or user)
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
   const endDate = new Date(year, month, 0).toISOString().split("T")[0];
 
   const shifts = await Shift.find({
-    doctorId: doctorId,
+    $or: [{ doctorId: doctor._id }, { doctor: doctor.user }],
     date: {
       $gte: startDate,
       $lte: endDate,
@@ -51,9 +65,43 @@ exports.calculateSalary = asyncHandler(async (req, res) => {
   });
 
   if (shifts.length === 0) {
-    return res.status(400).json({
-      success: false,
+    let salary = await Salary.findOne({
+      doctorId: doctor._id,
+      month: month,
+      year: year,
+    });
+
+    if (!salary) {
+      salary = new Salary({
+        doctor: doctor.user,
+        doctorId: doctor._id,
+        doctorName: doctor.name,
+        month: month,
+        year: year,
+        basicHourlyRate: basicHourlyRate || 210000,
+        degreeCoefficient: degreeCoefficient || 1.2,
+        totalShifts: 0,
+        shiftDetails: [],
+        totalWorkingHours: 0,
+        totalEquivalentHours: 0,
+        totalDifficulty: 0,
+        totalAmount: 0,
+        status: "draft",
+      });
+    } else {
+      salary.totalShifts = 0;
+      salary.shiftDetails = [];
+      salary.totalWorkingHours = 0;
+      salary.totalEquivalentHours = 0;
+      salary.totalDifficulty = 0;
+      salary.totalAmount = 0;
+    }
+    await salary.save();
+
+    return res.status(200).json({
+      success: true,
       message: "No active shifts found for this doctor in the specified month",
+      data: salary,
     });
   }
 
@@ -76,7 +124,7 @@ exports.calculateSalary = asyncHandler(async (req, res) => {
 
     // Fetch appointments for this shift to calculate difficulty
     const appointments = await Appointment.find({
-      doctor: shift.doctor,
+      $or: [{ doctor: shift.doctor }, { doctor: doctor.user }],
       date: shift.date,
       shiftType: shift.shiftType,
       status: { $in: ["completed", "examining", "checked-in"] },
@@ -197,7 +245,7 @@ exports.getSalary = asyncHandler(async (req, res) => {
 
 // @desc    Get detailed salary record with all shift/appointment info (for modal drill-down)
 // @route   GET /api/salaries/:id/detail
-// @access  Private/Admin
+// @access  Private/Admin or Doctor
 exports.getSalaryDetail = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -212,12 +260,25 @@ exports.getSalaryDetail = asyncHandler(async (req, res) => {
     });
   }
 
+  // If requester is a doctor, ensure they can only view their own salary
+  if (req.user.role === "doctor") {
+    const isOwnSalary =
+      salary.doctor?._id?.toString() === req.user._id.toString() ||
+      salary.doctor?.toString() === req.user._id.toString();
+    if (!isOwnSalary) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to view this salary detail",
+      });
+    }
+  }
+
   // Re-calculate fresh from real shifts + appointments for this doctor/month/year
   const startDate = `${salary.year}-${String(salary.month).padStart(2, "0")}-01`;
   const endDate = new Date(salary.year, salary.month, 0).toISOString().split("T")[0];
 
   const shifts = await Shift.find({
-    doctorId: salary.doctorId,
+    $or: [{ doctorId: salary.doctorId }, { doctor: salary.doctor }],
     date: { $gte: startDate, $lte: endDate },
     status: "active",
   }).populate("doctor", "name email");
@@ -237,7 +298,10 @@ exports.getSalaryDetail = asyncHandler(async (req, res) => {
 
     // Get completed/checked-in appointments for this shift
     const appointments = await Appointment.find({
-      doctor: shift.doctor._id,
+      $or: [
+        { doctor: shift.doctor?._id || shift.doctor },
+        { doctor: salary.doctor },
+      ],
       date: shift.date,
       shiftType: shift.shiftType,
       status: { $in: ["completed", "examining", "checked-in"] },

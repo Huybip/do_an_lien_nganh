@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AdminSidebar from "../../components/layout/AdminSidebar";
+import { authApi } from "../../services/api";
 
 interface Settings {
   clinicName: string;
@@ -88,6 +89,62 @@ export default function AdminSettings() {
       setTimeout(() => setSaved(false), 3000);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Admin Change Password Form State
+  const [pwdCurrent, setPwdCurrent] = useState("");
+  const [pwdNew, setPwdNew] = useState("");
+  const [pwdConfirm, setPwdConfirm] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSuccess(null);
+
+    if (!pwdCurrent) {
+      setPwdError("Vui lòng nhập mật khẩu hiện tại.");
+      return;
+    }
+    if (!pwdNew || pwdNew.length < 6) {
+      setPwdError("Mật khẩu mới phải có ít nhất 6 ký tự.");
+      return;
+    }
+    if (pwdNew !== pwdConfirm) {
+      setPwdError("Xác nhận mật khẩu mới không khớp.");
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      const res = await authApi.changePassword({
+        currentPassword: pwdCurrent,
+        newPassword: pwdNew,
+      });
+      const newToken = res.data?.data?.token || res.data?.token;
+      if (newToken) {
+        localStorage.setItem("token", newToken);
+      }
+      setPwdSuccess("Đổi mật khẩu thành công!");
+      setPwdCurrent("");
+      setPwdNew("");
+      setPwdConfirm("");
+      setTimeout(() => setPwdSuccess(null), 4000);
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại.";
+      if (msg.includes("Current password is incorrect") || msg.includes("incorrect")) {
+        setPwdError("Mật khẩu hiện tại không chính xác.");
+      } else {
+        setPwdError(msg);
+      }
+    } finally {
+      setPwdLoading(false);
     }
   };
 
@@ -388,6 +445,80 @@ export default function AdminSettings() {
                             <Toggle checked={item.enabled} onChange={() => {}} color="emerald" />
                           </div>
                         ))}
+                      </div>
+
+                      {/* Admin Change Password Card */}
+                      <div className="border-t border-slate-100 pt-6 mt-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center font-bold">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-slate-800 text-base">Đổi mật khẩu Quản trị viên</h3>
+                            <p className="text-xs text-slate-500">Cập nhật mật khẩu tài khoản đang đăng nhập</p>
+                          </div>
+                        </div>
+
+                        {pwdError && (
+                          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl">
+                            {pwdError}
+                          </div>
+                        )}
+
+                        {pwdSuccess && (
+                          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl">
+                            {pwdSuccess}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mật khẩu hiện tại</label>
+                            <input
+                              type="password"
+                              value={pwdCurrent}
+                              onChange={(e) => setPwdCurrent(e.target.value)}
+                              placeholder="••••••••"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Mật khẩu mới</label>
+                            <input
+                              type="password"
+                              value={pwdNew}
+                              onChange={(e) => setPwdNew(e.target.value)}
+                              placeholder="Ít nhất 6 ký tự"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Xác nhận mật khẩu mới</label>
+                            <input
+                              type="password"
+                              value={pwdConfirm}
+                              onChange={(e) => setPwdConfirm(e.target.value)}
+                              placeholder="Nhập lại mật khẩu mới"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={handlePasswordSubmit}
+                            disabled={pwdLoading}
+                            className="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition disabled:opacity-60 flex items-center gap-2"
+                          >
+                            {pwdLoading && (
+                              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            )}
+                            <span>{pwdLoading ? "Đang xử lý..." : "Cập nhật mật khẩu"}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
